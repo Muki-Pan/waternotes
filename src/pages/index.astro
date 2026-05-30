@@ -1,0 +1,85 @@
+---
+import "../styles/global.css";
+import { records } from "../data/records.js";
+
+const formatDate = (date) =>
+  date
+    ? new Intl.DateTimeFormat("en", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+      }).format(new Date(`${date}T00:00:00`))
+    : "Date unknown";
+
+const compactMeta = (parts) => parts.filter(Boolean).join(" / ");
+const supabaseConfig = JSON.stringify({
+  url: import.meta.env.PUBLIC_SUPABASE_URL || "",
+  publishableKey:
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY || "",
+  bucket: import.meta.env.PUBLIC_SUPABASE_BUCKET || "field-notes",
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Water Notes | Muki Pan</title>
+    <meta
+      name="description"
+      content="Water Notes is a field note series tracing the currents between images, bodies, places, and memory."
+    />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body class="is-syncing-records">
+    <main class="page-shell">
+      <section class="home-header">
+        <div class="home-title">
+          <h1>Water Notes</h1>
+          <h2>展览札记</h2>
+        </div>
+        <div class="summary">
+          <button class="button create-note-button" id="create-note" type="button" hidden>Create Note</button>
+        </div>
+      </section>
+
+      <section class="record-list" aria-label="Records">
+        {
+          records.map((record, index) => (
+            <article class="record-row" data-record-id={record.id}>
+              <div class="record-row__number">{String(index + 1).padStart(2, "0")}</div>
+              <a class="record-cover" href={`/record/?id=${record.id}`}>
+                <img
+                  class="smooth-image"
+                  src={record.images?.[0]?.src || ""}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  data-cover-record={record.id}
+                  hidden={!record.images?.[0]?.src}
+                />
+              </a>
+              <div>
+                <a class="record-row__title" href={`/record/?id=${record.id}`} data-record-title>
+                  {record.title}
+                </a>
+                <div class="meta" data-record-meta>
+                  {compactMeta([record.city, record.institution, formatDate(record.visitDate)])}
+                </div>
+                <p class="record-row__summary" data-record-summary>{record.summary}</p>
+              </div>
+            </article>
+          ))
+        }
+      </section>
+    </main>
+    <footer class="site-credit">
+      <a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a>
+    </footer>
+    <script type="application/json" id="supabase-config" set:html={supabaseConfig}></script>
+    <script>
+      import "../scripts/index-page.js";
+    </script>
+  </body>
+</html>

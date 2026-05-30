@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Field Notes | Exhibition Archive</title>
+    <meta
+      name="description"
+      content="A quiet exhibition archive for visual evidence, viewing notes, curatorial observations, and research traces."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-header__mark" href="#/">Muki Pan</a>
+      <nav class="site-header__nav" aria-label="Primary navigation">
+        <a href="#/">Field Notes</a>
+        <a href="#archive">Archive</a>
+        <a href="#owner">Owner</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="project-header" aria-labelledby="page-title">
+        <p class="eyebrow">Exhibition Archive / Viewing Records</p>
+        <h1 id="page-title">Field Notes</h1>
+        <p class="project-header__summary">
+          A long-term record of exhibitions seen in person: images, ticket stubs,
+          dates, places, curatorial structures, body notes, and research traces.
+        </p>
+      </section>
+
+      <nav class="section-nav" aria-label="Field notes sections">
+        <a href="#archive">Index</a>
+        <a href="#record">Record</a>
+        <a href="#owner">Upload</a>
+      </nav>
+
+      <section id="archive" class="section-block" aria-labelledby="archive-title">
+        <div class="section-heading">
+          <p class="eyebrow">Archive Index</p>
+          <h2 id="archive-title">Records</h2>
+        </div>
+        <div id="archive-list" class="archive-list"></div>
+      </section>
+
+      <section id="record" class="section-block record-shell" aria-live="polite"></section>
+
+      <section id="owner" class="section-block owner-panel" aria-labelledby="owner-title">
+        <div class="section-heading">
+          <p class="eyebrow">Private Maintenance</p>
+          <h2 id="owner-title">Add Visual Evidence</h2>
+        </div>
+
+        <div class="owner-gate" id="owner-gate">
+          <p>
+            The upload tools are intended for the site owner. This static version
+            uses a local browser key only; production should use Supabase Auth and
+            storage policies.
+          </p>
+          <form id="owner-form" class="inline-form">
+            <label for="owner-key">Owner key</label>
+            <input id="owner-key" name="owner-key" type="password" autocomplete="current-password" />
+            <button class="button" type="submit">Unlock</button>
+          </form>
+        </div>
+
+        <form id="upload-form" class="upload-form" hidden>
+          <div class="form-row">
+            <label for="record-select">Record</label>
+            <select id="record-select" name="record"></select>
+          </div>
+          <div class="form-row">
+            <label for="image-file">Image</label>
+            <input id="image-file" name="image" type="file" accept="image/*" />
+          </div>
+          <div class="form-row">
+            <label for="image-alt">Alt text</label>
+            <input id="image-alt" name="alt" type="text" />
+          </div>
+          <div class="form-row">
+            <label for="image-caption">Caption</label>
+            <textarea id="image-caption" name="caption" rows="3"></textarea>
+          </div>
+          <button class="button" type="submit">Add to record</button>
+          <p class="form-note">
+            Local preview stores image data in this browser. Supabase integration
+            should move files to private storage and keep captions in a table.
+          </p>
+        </form>
+      </section>
+
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

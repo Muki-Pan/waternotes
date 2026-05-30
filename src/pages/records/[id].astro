@@ -1,0 +1,162 @@
+---
+import "../../styles/global.css";
+import { records } from "../../data/records.js";
+
+export function getStaticPaths() {
+  return records.map((record) => ({
+    params: { id: record.id },
+    props: { record },
+  }));
+}
+
+const { record } = Astro.props;
+
+const formatDate = (date) =>
+  date
+    ? new Intl.DateTimeFormat("en", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+      }).format(new Date(`${date}T00:00:00`))
+    : "Date unknown";
+
+const compactMeta = (parts) => parts.filter(Boolean).join(" / ");
+const serializedRecord = JSON.stringify(record);
+const supabaseConfig = JSON.stringify({
+  url: import.meta.env.PUBLIC_SUPABASE_URL || "",
+  publishableKey:
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY || "",
+  bucket: import.meta.env.PUBLIC_SUPABASE_BUCKET || "field-notes",
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{record.title} | Water Notes</title>
+    <meta name="description" content={record.summary} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body data-record-id={record.id}>
+    <main class="page-shell record-shell">
+      <a class="back-link" href="/">Back to Water Notes</a>
+      <header class="record-header">
+        <p class="eyebrow">Record / {record.id}</p>
+        <h1 id="record-title">{record.title}</h1>
+        <p id="record-title-zh" hidden={!record.titleZh}>{record.titleZh}</p>
+        <div class="record-meta">
+          <div>
+            <span>City</span>
+            <strong id="record-location">{compactMeta([record.city, record.country])}</strong>
+          </div>
+          <div>
+            <span>Institution</span>
+            <strong id="record-institution">{record.institution || "To be added"}</strong>
+          </div>
+          <div>
+            <span>Visit date</span>
+            <strong id="record-visit-date">{formatDate(record.visitDate)}</strong>
+          </div>
+          <div>
+            <span>Exhibition dates</span>
+            <strong id="record-exhibition-dates">{record.exhibitionDates || "Not recorded"}</strong>
+          </div>
+        </div>
+      </header>
+      <div id="record-details-tools" class="edit-tools record-details-tools" hidden>
+        <label>
+          <span>Title</span>
+          <input id="record-title-editor" type="text" />
+        </label>
+        <label>
+          <span>Chinese title</span>
+          <input id="record-title-zh-editor" type="text" />
+        </label>
+        <label>
+          <span>City</span>
+          <input id="record-city-editor" type="text" />
+        </label>
+        <label>
+          <span>Country</span>
+          <input id="record-country-editor" type="text" />
+        </label>
+        <label>
+          <span>Institution</span>
+          <input id="record-institution-editor" type="text" />
+        </label>
+        <label>
+          <span>Visit date</span>
+          <input id="record-visit-date-editor" type="date" />
+        </label>
+        <label>
+          <span>Exhibition dates</span>
+          <input id="record-exhibition-dates-editor" type="text" />
+        </label>
+        <label class="record-details-tools__wide">
+          <span>Summary</span>
+          <textarea id="record-summary-editor" class="notes-editor" aria-label="Edit summary"></textarea>
+        </label>
+        <button class="button" id="save-record-details" type="button">Save Details</button>
+      </div>
+
+      <section class="section-block" aria-labelledby="images-title">
+        <div id="images-view" class="image-masonry"></div>
+        <p id="images-empty" class="empty-state" hidden>No images yet.</p>
+        <div id="image-tools" class="image-upload" hidden>
+          <input id="image-files" type="file" accept="image/*" multiple />
+        </div>
+      </section>
+
+      <section class="section-block" aria-labelledby="notes-title">
+        <h2 id="notes-title">Notes</h2>
+        <div id="notes-view" class="notes-view"></div>
+        <div id="notes-tools" class="edit-tools" hidden>
+          <textarea id="notes-editor" class="notes-editor" aria-label="Edit notes"></textarea>
+          <button class="button" id="save-notes" type="button">Save Notes</button>
+        </div>
+      </section>
+
+      <section class="section-block" aria-labelledby="links-title">
+        <h2 id="links-title">Related Links</h2>
+        <ul id="links-view" class="related-list"></ul>
+        <p id="links-empty" class="empty-state" hidden>No related links yet.</p>
+        <div id="link-tools" class="edit-tools" hidden>
+          <textarea id="links-editor" class="notes-editor" aria-label="Edit related links"></textarea>
+          <button class="button" id="save-links" type="button">Save Links</button>
+        </div>
+      </section>
+
+      <p class="owner-copy owner-state" id="owner-state" hidden>Owner editing is active.</p>
+    </main>
+    <footer class="site-credit">
+      <a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a>
+    </footer>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox__close" id="lightbox-close" type="button" aria-label="Close image">
+        <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18"></path>
+        </svg>
+      </button>
+      <button class="lightbox__nav lightbox__nav--prev" id="lightbox-prev" type="button" aria-label="Previous image">
+        <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"></path>
+        </svg>
+      </button>
+      <img id="lightbox-image" alt="" />
+      <button class="lightbox__nav lightbox__nav--next" id="lightbox-next" type="button" aria-label="Next image">
+        <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 18l6-6-6-6"></path>
+        </svg>
+      </button>
+    </div>
+
+    <script type="application/json" id="record-data" set:html={serializedRecord}></script>
+    <script type="application/json" id="supabase-config" set:html={supabaseConfig}></script>
+    <script>
+      import "../../scripts/record-page.js";
+    </script>
+  </body>
+</html>

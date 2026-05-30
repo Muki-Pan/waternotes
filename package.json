@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "astro": "^5.8.0"
+  }
+}
