@@ -2,10 +2,15 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "12",
     "@supabase/supabase-js": "^2.106.2",
     "astro": "^5.8.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.95.0"
   }
 }
