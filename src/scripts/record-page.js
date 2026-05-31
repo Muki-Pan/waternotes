@@ -3,6 +3,7 @@ import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
 const OWNER_ACCESS_KEYS = ["field-notes-owner-access", "field-notes-owner-v2"];
 const LOCAL_RECORDS_KEY = "field-notes-local-records-v1";
 const LOCAL_IMAGES_KEY = "field-notes-images";
+const MAX_IMAGE_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 const record = JSON.parse(document.querySelector("#record-data").textContent);
 const recordId = document.body.dataset.recordId || new URLSearchParams(window.location.search).get("id") || record.id;
@@ -550,8 +551,18 @@ saveRecordDetails.addEventListener("click", async () => {
 });
 
 imageFiles.addEventListener("change", async () => {
-  const files = Array.from(imageFiles.files || []).filter((file) => file.type.startsWith("image/"));
-  if (!files.length || !ownerActive) return;
+  const selectedFiles = Array.from(imageFiles.files || []).filter((file) => file.type.startsWith("image/"));
+  const oversizedFiles = selectedFiles.filter((file) => file.size > MAX_IMAGE_UPLOAD_SIZE);
+  const files = selectedFiles.filter((file) => file.size <= MAX_IMAGE_UPLOAD_SIZE);
+
+  if (oversizedFiles.length) {
+    window.alert("单张图片最大上传大小为 5MB。请压缩后再上传。");
+  }
+
+  if (!files.length || !ownerActive) {
+    imageFiles.value = "";
+    return;
+  }
 
   if (!ownerSessionActive) {
     const newImages = await Promise.all(
@@ -685,5 +696,9 @@ if (supabase) {
   });
 }
 
-await loadRemoteData();
-await refreshOwnerAccess();
+try {
+  await loadRemoteData();
+  await refreshOwnerAccess();
+} finally {
+  document.body.classList.remove("is-loading-record");
+}
