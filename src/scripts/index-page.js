@@ -202,6 +202,19 @@ async function refreshOwnerAccess() {
   return Boolean(session);
 }
 
+window.fieldNotesSignIn = async (email, password) => {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  await refreshOwnerAccess();
+};
+
+window.fieldNotesSignOut = async () => {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+  await refreshOwnerAccess();
+};
+
 createNoteButton?.addEventListener("click", async () => {
   const id = `fn-${Date.now()}`;
   const today = new Date().toISOString().slice(0, 10);
@@ -241,6 +254,12 @@ createNoteButton?.addEventListener("click", async () => {
     window.location.href = recordHref(id);
   }
 });
+
+if (supabase) {
+  supabase.auth.onAuthStateChange(() => {
+    refreshOwnerAccess();
+  });
+}
 
 ensureRecordRows(recordsById);
 applyRecordUpdates(recordsById);
