@@ -12,6 +12,8 @@ const formatDate = (date) =>
     : "Date unknown";
 
 const compactMeta = (parts) => parts.filter(Boolean).join(" / ");
+const visitDateTimestamp = (record) => (record.visitDate ? new Date(`${record.visitDate}T00:00:00`).getTime() : -Infinity);
+const recordsByVisitDate = [...records].sort((a, b) => visitDateTimestamp(b) - visitDateTimestamp(a));
 const supabaseConfig = JSON.stringify({
   url: import.meta.env.PUBLIC_SUPABASE_URL || "",
   publishableKey:
@@ -37,7 +39,7 @@ const supabaseConfig = JSON.stringify({
       <section class="home-header">
         <div class="home-title">
           <h1>Water Notes</h1>
-          <h2>展览札记</h2>
+          <h2>视觉札记</h2>
         </div>
         <div class="summary">
           <button class="button create-note-button" id="create-note" type="button" hidden>Create Note</button>
@@ -46,8 +48,8 @@ const supabaseConfig = JSON.stringify({
 
       <section class="record-list" aria-label="Records">
         {
-          records.map((record, index) => (
-            <article class="record-row" data-record-id={record.id}>
+          recordsByVisitDate.map((record, index) => (
+            <article class="record-row" data-record-id={record.id} data-visit-date={record.visitDate || ""}>
               <div class="record-row__number">{String(index + 1).padStart(2, "0")}</div>
               <a class="record-cover" href={`/record/?id=${record.id}`}>
                 <img

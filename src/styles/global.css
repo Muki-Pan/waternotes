@@ -89,17 +89,27 @@ h3 {
 .home-header {
   display: grid;
   grid-template-columns: 1fr minmax(360px, 590px);
-  gap: 32px;
+  gap: 20px;
   align-items: end;
 }
 
 .home-title {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 14px;
+  gap: 0 12px;
   align-items: center;
   justify-content: flex-start;
   text-align: left;
+}
+
+.home-title h1 {
+  font-size: 34px;
+  line-height: 1.25;
+}
+
+.home-title h2 {
+  font-size: 18px;
+  line-height: 1.45;
 }
 
 .summary {
@@ -213,7 +223,7 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 34px 30px;
-  margin-top: 56px;
+  margin-top: 34px;
 }
 
 .record-row {
@@ -609,11 +619,19 @@ input {
 
   .home-header {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 10px;
   }
 
   .home-title {
-    gap: 0 12px;
+    gap: 0 10px;
+  }
+
+  .home-title h1 {
+    font-size: 31px;
+  }
+
+  .home-title h2 {
+    font-size: 17px;
   }
 
   .summary {
@@ -624,7 +642,8 @@ input {
 
   .record-list {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 28px;
+    margin-top: 28px;
   }
 
   .record-row {
@@ -641,8 +660,28 @@ input {
     font-size: 31px;
   }
 
+  .home-header {
+    gap: 8px;
+  }
+
+  .home-title {
+    row-gap: 2px;
+  }
+
+  .home-title h1 {
+    font-size: 28px;
+  }
+
+  .home-title h2 {
+    font-size: 16px;
+  }
+
   .summary {
     max-width: none;
+  }
+
+  .record-list {
+    margin-top: 24px;
   }
 
   .record-row,

@@ -20,6 +20,15 @@ function compactMeta(parts) {
   return parts.filter(Boolean).join(" / ");
 }
 
+function getVisitDate(record) {
+  return record?.visit_date || record?.visitDate || "";
+}
+
+function visitDateTimestamp(record) {
+  const visitDate = getVisitDate(record);
+  return visitDate ? new Date(`${visitDate}T00:00:00`).getTime() : -Infinity;
+}
+
 function loadLocalRecords() {
   try {
     return JSON.parse(localStorage.getItem(LOCAL_RECORDS_KEY) || "{}");
@@ -48,6 +57,7 @@ function createRecordRow(record, index) {
   const article = document.createElement("article");
   article.className = "record-row";
   article.dataset.recordId = record.id;
+  article.dataset.visitDate = getVisitDate(record);
 
   const number = document.createElement("div");
   number.className = "record-row__number";
@@ -146,6 +156,7 @@ function applyRecordUpdates(recordsById) {
     if (meta && (hasField("city") || hasField("institution") || hasField("visit_date"))) {
       meta.textContent = compactMeta([record.city, record.institution, formatDate(record.visit_date)]);
     }
+    if (hasField("visit_date")) row.dataset.visitDate = record.visit_date || "";
     if (summary && hasField("summary")) summary.textContent = record.summary || "";
     if (cover && hasField("cover_src")) {
       if (record.cover_src) {
@@ -166,6 +177,23 @@ function applyRecordUpdates(recordsById) {
   });
 }
 
+function sortRecordRows(recordsById) {
+  if (!recordList) return;
+
+  const rows = Array.from(recordList.querySelectorAll("[data-record-id]"));
+  rows
+    .sort((a, b) => {
+      const aDate = visitDateTimestamp(recordsById.get(a.dataset.recordId) || { visit_date: a.dataset.visitDate });
+      const bDate = visitDateTimestamp(recordsById.get(b.dataset.recordId) || { visit_date: b.dataset.visitDate });
+      return bDate - aDate;
+    })
+    .forEach((row, index) => {
+      const number = row.querySelector(".record-row__number");
+      if (number) number.textContent = String(index + 1).padStart(2, "0");
+      recordList.append(row);
+    });
+}
+
 const recordsById = new Map();
 
 if (supabase) {
@@ -173,7 +201,7 @@ if (supabase) {
     .from("exhibition_records")
     .select("id, title, institution, city, visit_date, summary, cover_src")
     .eq("published", true)
-    .order("created_at", { ascending: true });
+    .order("visit_date", { ascending: false, nullsFirst: false });
 
   if (!error && data) {
     data.forEach((record) => recordsById.set(record.id, record));
@@ -263,6 +291,7 @@ if (supabase) {
 
 ensureRecordRows(recordsById);
 applyRecordUpdates(recordsById);
+sortRecordRows(recordsById);
 prepareSmoothImages();
 await refreshOwnerAccess();
 document.body.classList.remove("is-syncing-records");
