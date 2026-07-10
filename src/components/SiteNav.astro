@@ -1,0 +1,14 @@
+---
+const { current = "home" } = Astro.props;
+---
+
+<header class="site-header">
+  <a class="site-brand" href="/" aria-current={current === "home" ? "page" : undefined}>
+    <span>Water Notes</span>
+    <span lang="zh">视觉札记</span>
+  </a>
+  <nav class="site-nav" aria-label="Primary navigation">
+    <a href="/" aria-current={current === "home" ? "page" : undefined}>Home</a>
+    <a href="/notes" aria-current={current === "archive" ? "page" : undefined}>All Notes</a>
+  </nav>
+</header>

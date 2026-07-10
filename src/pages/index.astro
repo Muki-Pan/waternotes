@@ -1,87 +1,114 @@
 ---
 import "../styles/global.css";
-import { records } from "../data/records.js";
+import HomeFigure from "../components/HomeFigure.astro";
+import SiteNav from "../components/SiteNav.astro";
 
-const formatDate = (date) =>
-  date
-    ? new Intl.DateTimeFormat("en", {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-      }).format(new Date(`${date}T00:00:00`))
-    : "Date unknown";
-
-const compactMeta = (parts) => parts.filter(Boolean).join(" / ");
-const visitDateTimestamp = (record) => (record.visitDate ? new Date(`${record.visitDate}T00:00:00`).getTime() : -Infinity);
-const recordsByVisitDate = [...records].sort((a, b) => visitDateTimestamp(b) - visitDateTimestamp(a));
 const supabaseConfig = JSON.stringify({
   url: import.meta.env.PUBLIC_SUPABASE_URL || "",
   publishableKey:
     import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY || "",
   bucket: import.meta.env.PUBLIC_SUPABASE_BUCKET || "field-notes",
 });
+
+const slots = [
+  ["hero-main", "landscape"], ["hero-secondary", "square"], ["hero-tertiary", "portrait"], ["hero-memory", "wide"],
+  ["large-left", "wide"], ["large-left-small", "portrait"], ["paired-a", "portrait"], ["paired-b", "landscape"],
+  ["single-right", "square"], ["text-image", "landscape"], ["closing-a", "wide"], ["closing-b", "portrait"],
+];
+const slot = (name) => slots.findIndex(([slotName]) => slotName === name);
+
+// Add the matching detail URL to href, for example: "/record/?id=fn-001".
+// Leave text empty to hide a fragment. An empty href keeps the text visible but unlinked.
+const homeFragments = [
+  {
+    text: "前者是诗意的、戏剧化的表达，而后者就更加的有力、直接。她没有拍摄自己的脸、身体的曲线等等，而是拍摄了自己坚挺有力的背部——一副因为刻板印象，而会让你错以为是男性背部肖像的作品。",
+    href: "/record/?id=fn-1783267308419",
+  },
+  {
+    text: "夜晚海边的烟花棒、最后对这列车车窗的两个人的对话、桥下的摄影展、偷相机时候的固定机位....喜欢女孩之间的情谊和故事",
+    href: "/record/?id=fn-1783266047584",
+  },
+  {
+    text: "珍珠项链的头和尾紧紧相连，蛇便从曲线化作了圈。尽管不少人对蛇有抵触、恐惧、厌恶的情绪但蛇其实是女性能量的象征，也是医疗的象征。",
+    href: "/record/?id=fn-002",
+  },
+];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Water Notes | Muki Pan</title>
-    <meta
-      name="description"
-      content="Water Notes is a field note series tracing the currents between images, bodies, places, and memory."
-    />
+    <meta name="description" content="在展览、城市与临时空间中移动时，留下的现场图像与观看片段。" />
     <link rel="icon" type="image/png" href="/favicon.png" />
   </head>
-  <body class="is-syncing-records">
-    <main class="page-shell">
-      <section class="home-header">
-        <div class="home-title">
-          <h1>Water Notes</h1>
-          <h2>视觉札记</h2>
+  <body class="visual-home is-loading-home">
+    <main class="home-shell">
+      <SiteNav current="home" />
+
+      <section class="visual-opening" aria-labelledby="home-title">
+        <div class="opening-intro">
+          <h1 id="home-title" class="visually-hidden">Water Notes</h1>
+          <p>在展览、城市与临时空间中移动时，留下的现场图像与观看片段。它们并不完整，也仍在继续生长。</p>
+          <a class="browse-slowly" href="#visual-stream">Browse slowly <span aria-hidden="true">↓</span></a>
         </div>
-        <div class="summary">
-          <button class="button create-note-button" id="create-note" type="button" hidden>Create Note</button>
+        <div class="opening-images" aria-label="Recent and earlier field images">
+          {slots.slice(0, 4).map(([name, ratio], index) => (
+            <HomeFigure name={name} ratio={ratio} index={index} priority={index < 3} />
+          ))}
         </div>
       </section>
 
-      <section class="record-list" aria-label="Records">
-        {
-          recordsByVisitDate.map((record, index) => (
-            <article class="record-row" data-record-id={record.id} data-visit-date={record.visitDate || ""}>
-              <div class="record-row__number">{String(index + 1).padStart(2, "0")}</div>
-              <a class="record-cover" href={`/record/?id=${record.id}`}>
-                <img
-                  class="smooth-image"
-                  src={record.images?.[0]?.src || ""}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  data-cover-record={record.id}
-                  hidden={!record.images?.[0]?.src}
-                />
-              </a>
-              <div>
-                <a class="record-row__title" href={`/record/?id=${record.id}`} data-record-title>
-                  {record.title}
-                </a>
-                <div class="meta" data-record-meta>
-                  {compactMeta([record.city, record.institution, formatDate(record.visitDate)])}
-                </div>
-                <p class="record-row__summary" data-record-summary>{record.summary}</p>
-              </div>
-            </article>
-          ))
-        }
+      <div id="visual-stream" class="visual-stream">
+        <section class="visual-section visual-section--large-left" aria-label="Field images">
+          {["large-left", "large-left-small"].map((name) => {
+            const [slotName, ratio] = slots[slot(name)];
+            return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />;
+          })}
+          <blockquote class="home-fragment home-fragment--one" hidden={!homeFragments[0].text}>
+            {homeFragments[0].href ? <a href={homeFragments[0].href}>{homeFragments[0].text}</a> : <span>{homeFragments[0].text}</span>}
+          </blockquote>
+        </section>
+
+        <section class="visual-section visual-section--paired-offset" aria-label="Paired field images">
+          {["paired-a", "paired-b"].map((name) => {
+            const [slotName, ratio] = slots[slot(name)];
+            return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />;
+          })}
+        </section>
+
+        <section class="visual-section visual-section--single-right" aria-label="A field image">
+          {(() => { const name = "single-right"; const [slotName, ratio] = slots[slot(name)]; return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />; })()}
+          <blockquote class="home-fragment home-fragment--two" hidden={!homeFragments[1].text}>
+            {homeFragments[1].href ? <a href={homeFragments[1].href}>{homeFragments[1].text}</a> : <span>{homeFragments[1].text}</span>}
+          </blockquote>
+        </section>
+
+        <section class="visual-section visual-section--text-image" aria-label="A note and image">
+          {(() => { const name = "text-image"; const [slotName, ratio] = slots[slot(name)]; return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />; })()}
+        </section>
+
+        <section class="visual-section visual-section--closing" aria-label="Earlier field images">
+          {["closing-a", "closing-b"].map((name) => {
+            const [slotName, ratio] = slots[slot(name)];
+            return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />;
+          })}
+          <blockquote class="home-fragment home-fragment--three" hidden={!homeFragments[2].text}>
+            {homeFragments[2].href ? <a href={homeFragments[2].href}>{homeFragments[2].text}</a> : <span>{homeFragments[2].text}</span>}
+          </blockquote>
+        </section>
+      </div>
+
+      <section class="archive-entrance">
+        <h2>All Notes</h2>
+        <p>按时间查看全部观看记录</p><a href="/notes">Enter the archive <span aria-hidden="true">→</span></a>
       </section>
+      <p class="home-empty" id="home-empty" hidden>现场图片仍在汇集。你可以先进入 Archive 阅读现有记录。</p>
     </main>
-    <footer class="site-credit">
-      <a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a>
-    </footer>
+    <footer class="site-credit"><a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a></footer>
     <script type="application/json" id="supabase-config" set:html={supabaseConfig}></script>
-    <script>
-      import "../scripts/index-page.js";
-    </script>
+    <script>import "../scripts/home-page.js";</script>
   </body>
 </html>

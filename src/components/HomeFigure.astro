@@ -1,0 +1,17 @@
+---
+const { name, ratio, index, priority = false } = Astro.props;
+---
+
+<figure class={`home-figure home-figure--${name} ratio-${ratio}`} data-home-slot={index}>
+  <a class="home-image-link" href="/notes" aria-label="Browse all notes">
+    <span class="home-image-frame">
+      <span class="home-image-placeholder" aria-hidden="true"></span>
+      <img alt="" decoding="async" loading={priority ? "eager" : "lazy"} fetchpriority={index === 0 ? "high" : "auto"} />
+    </span>
+    <figcaption>
+      <span data-image-meta></span>
+      <strong data-image-title></strong>
+      <p data-image-summary hidden></p>
+    </figcaption>
+  </a>
+</figure>

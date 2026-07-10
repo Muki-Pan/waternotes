@@ -41,9 +41,8 @@ const supabaseConfig = JSON.stringify({
   </head>
   <body class="is-loading-record" data-record-id={record.id}>
     <main class="page-shell record-shell">
-      <a class="back-link" href="/">Back to Water Notes</a>
+      <a class="back-link" href="/notes">Back to All Notes</a>
       <header class="record-header">
-        <p class="eyebrow">Record / {record.id}</p>
         <h1 id="record-title">{record.title}</h1>
         <p id="record-title-zh" hidden={!record.titleZh}>{record.titleZh}</p>
         <div class="record-meta">

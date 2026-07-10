@@ -249,7 +249,7 @@ function renderNotes() {
   const notes = getNotes();
   notesView.innerHTML = notes.length
     ? notes.map((note) => `<p>${escapeHtml(note)}</p>`).join("")
-    : '<p class="empty-state">""</p>';
+    : '<p class="empty-state">No notes yet.</p>';
   notesEditor.value = notes.join("\n\n");
 }
 
@@ -304,49 +304,36 @@ function renderImages() {
   const images = getImages();
   const coverImage = getCoverImage();
   const columnCount = getMasonryColumnCount(images.length);
-  const columns = Array.from({ length: columnCount }, () => []);
 
   masonryColumnCount = columnCount;
   imagesView.style.setProperty("--masonry-columns", columnCount);
 
-  images.forEach((image, index) => {
-    columns[index % columnCount].push({ image, index });
-  });
-
-  imagesView.innerHTML = columns
+  imagesView.innerHTML = images
     .map(
-      (column) => `
-        <div class="masonry-column">
-          ${column
-            .map(
-              ({ image, index }) => `
-                <figure class="masonry-item">
-                  <button class="image-button" type="button" data-image-index="${index}" aria-label="Open image">
-                    <img class="smooth-image" src="${escapeAttribute(image.src)}" alt="" loading="lazy" decoding="async" />
-                  </button>
+      (image, index) => `
+        <figure class="masonry-item">
+          <button class="image-button" type="button" data-image-index="${index}" aria-label="Open image">
+            <img class="smooth-image" src="${escapeAttribute(image.src)}" alt="" loading="lazy" decoding="async" />
+          </button>
+          ${
+            ownerActive
+              ? `<div class="image-actions">
+                  <button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${
+                    image.src === coverImage?.src ? "Cover" : "Set cover"
+                  }</button>
                   ${
-                    ownerActive
-                      ? `<div class="image-actions">
-                          <button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${
-                            image.src === coverImage?.src ? "Cover" : "Set cover"
-                          }</button>
-                          ${
-                            image.source === "base" || (image.source === "remote" && !ownerSessionActive)
-                              ? ""
-                              : `<button class="delete-image-button" type="button" data-delete-image-index="${index}" aria-label="Delete image">
-                                  <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M6 7h12M10 11v6M14 11v6M9 7l1-3h4l1 3M8 7l1 13h6l1-13"></path>
-                                  </svg>
-                                </button>`
-                          }
-                        </div>`
-                      : ""
+                    image.source === "base" || (image.source === "remote" && !ownerSessionActive)
+                      ? ""
+                      : `<button class="delete-image-button" type="button" data-delete-image-index="${index}" aria-label="Delete image">
+                          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 7h12M10 11v6M14 11v6M9 7l1-3h4l1 3M8 7l1 13h6l1-13"></path>
+                          </svg>
+                        </button>`
                   }
-                </figure>
-              `
-            )
-            .join("")}
-        </div>
+                </div>`
+              : ""
+          }
+        </figure>
       `
     )
     .join("");
