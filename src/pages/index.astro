@@ -14,6 +14,7 @@ const slots = [
   ["hero-main", "landscape"], ["hero-secondary", "square"], ["hero-tertiary", "portrait"], ["hero-memory", "wide"],
   ["large-left", "wide"], ["large-left-small", "portrait"], ["paired-a", "portrait"], ["paired-b", "landscape"],
   ["single-right", "square"], ["text-image", "landscape"], ["closing-a", "wide"], ["closing-b", "portrait"],
+  ["archive-image", "portrait"],
 ];
 const slot = (name) => slots.findIndex(([slotName]) => slotName === name);
 
@@ -101,9 +102,12 @@ const homeFragments = [
         </section>
       </div>
 
-      <section class="archive-entrance">
-        <h2>All Notes</h2>
-        <p>按时间查看全部观看记录</p><a href="/notes">Enter the archive <span aria-hidden="true">→</span></a>
+      <section class="home-ending">
+        <div class="archive-entrance">
+          <h2>All Notes</h2>
+          <p>按时间查看全部观看记录</p><a href="/notes">Enter the archive <span aria-hidden="true">→</span></a>
+        </div>
+        {(() => { const name = "archive-image"; const [slotName, ratio] = slots[slot(name)]; return <HomeFigure name={slotName} ratio={ratio} index={slot(name)} />; })()}
       </section>
       <p class="home-empty" id="home-empty" hidden>现场图片仍在汇集。你可以先进入 Archive 阅读现有记录。</p>
     </main>

@@ -1,6 +1,6 @@
 import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
 
-const HOME_LIMIT = 12;
+const HOME_LIMIT = 13;
 const RECENT_RECORD_LIMIT = 5;
 const supabase = getSupabase();
 const bucketName = getSupabaseBucket();

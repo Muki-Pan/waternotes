@@ -3,30 +3,18 @@ import { getSupabase } from "./supabase-client.js";
 const OWNER_ACCESS_KEYS = ["field-notes-owner-access", "field-notes-owner-v2"];
 const LOCAL_RECORDS_KEY = "field-notes-local-records-v1";
 const supabase = getSupabase();
-const recordList = document.querySelector(".record-list");
+const timeline = document.querySelector("#archive-timeline");
+const yearIndex = document.querySelector(".archive-year-index");
 const createNoteButton = document.querySelector("#create-note");
+const ARCHIVE_SCROLL_KEY = "water-notes-archive-scroll";
+const ARCHIVE_RETURN_KEY = "water-notes-archive-return";
 
-function formatDate(date) {
-  return date
-    ? new Intl.DateTimeFormat("en", {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-      }).format(new Date(`${date}T00:00:00`))
-    : "Date unknown";
-}
-
-function compactMeta(parts) {
-  return parts.filter(Boolean).join(" / ");
-}
-
-function getVisitDate(record) {
-  return record?.visit_date || record?.visitDate || "";
-}
-
-function visitDateTimestamp(record) {
-  const visitDate = getVisitDate(record);
-  return visitDate ? new Date(`${visitDate}T00:00:00`).getTime() : -Infinity;
+function fallbackRecords() {
+  try {
+    return JSON.parse(document.querySelector("#archive-fallback-data")?.textContent || "[]");
+  } catch {
+    return [];
+  }
 }
 
 function loadLocalRecords() {
@@ -49,184 +37,147 @@ function hasLocalOwnerAccess() {
   }
 }
 
+function value(record, snakeKey, camelKey = snakeKey) {
+  return record?.[snakeKey] ?? record?.[camelKey] ?? "";
+}
+
+function visitDate(record) {
+  return value(record, "visit_date", "visitDate");
+}
+
+function timestamp(record) {
+  return visitDate(record) ? new Date(`${visitDate(record)}T00:00:00`).getTime() : -Infinity;
+}
+
+function formatGroupDate(date) {
+  return new Intl.DateTimeFormat("en", { month: "short", day: "2-digit" })
+    .format(new Date(`${date}T00:00:00`))
+    .toUpperCase();
+}
+
 function recordHref(id) {
   return `/record/?id=${encodeURIComponent(id)}`;
 }
 
-function createRecordRow(record, index) {
-  const article = document.createElement("article");
-  article.className = "record-row";
+function groupArchive(records) {
+  const dated = records.filter((record) => visitDate(record)).sort((a, b) => timestamp(b) - timestamp(a));
+  const undated = records.filter((record) => !visitDate(record));
+  const sections = new Map();
+
+  dated.forEach((record) => {
+    const date = visitDate(record);
+    const year = date.slice(0, 4);
+    if (!sections.has(year)) sections.set(year, new Map());
+    const groups = sections.get(year);
+    const city = String(record.city || "").trim();
+    const key = `${date}::${city}`;
+    if (!groups.has(key)) groups.set(key, { date, city, records: [] });
+    groups.get(key).records.push(record);
+  });
+
+  const result = Array.from(sections, ([year, groups]) => ({ year, groups: Array.from(groups.values()) }));
+  if (undated.length) result.push({ year: "undated", groups: [{ date: "", city: "", records: undated }] });
+  return result;
+}
+
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function createRecord(record) {
+  const article = element("article", "archive-record");
   article.dataset.recordId = record.id;
-  article.dataset.visitDate = getVisitDate(record);
-
-  const number = document.createElement("div");
-  number.className = "record-row__number";
-  number.textContent = String(index + 1).padStart(2, "0");
-
-  const coverLink = document.createElement("a");
-  coverLink.className = "record-cover";
+  const coverLink = element("a", "record-cover");
   coverLink.href = recordHref(record.id);
-
-  const cover = document.createElement("img");
-  cover.className = "smooth-image";
+  const cover = element("img", "smooth-image");
   cover.alt = "";
   cover.loading = "lazy";
   cover.decoding = "async";
-  cover.dataset.coverRecord = record.id;
-  if (record.cover_src) {
-    cover.src = record.cover_src;
-  } else {
-    cover.hidden = true;
-  }
+  const coverSrc = value(record, "cover_src", "coverSrc") || record.images?.[0]?.src || "";
+  if (coverSrc) cover.src = coverSrc;
+  else cover.hidden = true;
   coverLink.append(cover);
 
-  const content = document.createElement("div");
-  const title = document.createElement("a");
-  title.className = "record-row__title";
+  const copy = element("div", "archive-record__copy");
+  const title = element("a", "record-row__title", record.title || "Untitled record");
   title.href = recordHref(record.id);
-  title.dataset.recordTitle = "";
-
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.dataset.recordMeta = "";
-
-  const summary = document.createElement("p");
-  summary.className = "record-row__summary";
-  summary.dataset.recordSummary = "";
-
-  content.append(title, meta, summary);
-  article.append(number, coverLink, content);
+  copy.append(title);
+  if (record.institution) copy.append(element("p", "archive-record__institution", record.institution));
+  if (record.summary) copy.append(element("p", "record-row__summary", record.summary));
+  article.append(coverLink, copy);
   return article;
+}
+
+function createGroup(group) {
+  const section = element("section", "archive-group");
+  const header = element("header", "archive-group__header");
+  header.append(element("h3", "", group.date ? formatGroupDate(group.date) : "Undated / 日期未定"));
+  if (group.city) header.append(element("p", "", group.city));
+  const records = element("div", "archive-group__records");
+  group.records.forEach((record) => records.append(createRecord(record)));
+  section.append(header, records);
+  return section;
+}
+
+function renderArchive(records) {
+  if (!timeline || !yearIndex) return;
+  const sections = groupArchive(records);
+  timeline.replaceChildren();
+  yearIndex.replaceChildren();
+
+  sections.forEach((archiveSection) => {
+    const id = `archive-year-${archiveSection.year}`;
+    if (archiveSection.year !== "undated") {
+      const link = element("a", "", archiveSection.year);
+      link.href = `#${id}`;
+      yearIndex.append(link);
+    }
+    const section = element("section", "archive-year");
+    section.id = id;
+    section.dataset.archiveYear = archiveSection.year;
+    section.append(element("h2", "", archiveSection.year === "undated" ? "Undated / 日期未定" : archiveSection.year));
+    const groups = element("div", "archive-year__groups");
+    archiveSection.groups.forEach((group) => groups.append(createGroup(group)));
+    section.append(groups);
+    timeline.append(section);
+  });
+  prepareSmoothImages();
 }
 
 function prepareSmoothImage(image) {
   if (!image || image.dataset.smoothReady) return;
-
   image.dataset.smoothReady = "true";
-
-  if (image.complete && image.naturalWidth > 0) {
-    image.classList.add("is-loaded");
-    return;
-  }
-
-  image.addEventListener(
-    "load",
-    () => {
-      image.classList.add("is-loaded");
-    },
-    { once: true }
-  );
+  if (image.complete && image.naturalWidth > 0) image.classList.add("is-loaded");
+  else image.addEventListener("load", () => image.classList.add("is-loaded"), { once: true });
 }
 
 function prepareSmoothImages() {
   document.querySelectorAll(".smooth-image").forEach(prepareSmoothImage);
 }
 
-function ensureRecordRows(recordsById) {
-  if (!recordList) return;
-
-  recordsById.forEach((record) => {
-    const existingRow = Array.from(document.querySelectorAll("[data-record-id]")).find((row) => row.dataset.recordId === record.id);
-    if (!record?.id || existingRow) return;
-    recordList.append(createRecordRow(record, recordList.querySelectorAll("[data-record-id]").length));
-  });
-}
-
-function applyRecordUpdates(recordsById) {
-  Array.from(document.querySelectorAll("[data-record-id]")).forEach((row) => {
-    const record = recordsById.get(row.dataset.recordId);
-    if (!record) return;
-    const hasField = (key) => Object.hasOwn(record, key);
-
-    const title = row.querySelector("[data-record-title]");
-    const meta = row.querySelector("[data-record-meta]");
-    const summary = row.querySelector("[data-record-summary]");
-    const coverLink = row.querySelector(".record-cover");
-    let cover = row.querySelector("[data-cover-record]");
-
-    if (!cover && coverLink) {
-      cover = document.createElement("img");
-      cover.alt = "";
-      cover.dataset.coverRecord = row.dataset.recordId;
-      cover.hidden = true;
-      coverLink.append(cover);
-    }
-
-    if (title && hasField("title") && record.title) title.textContent = record.title;
-    if (meta && (hasField("city") || hasField("institution") || hasField("visit_date"))) {
-      meta.textContent = compactMeta([record.city, record.institution, formatDate(record.visit_date)]);
-    }
-    if (hasField("visit_date")) row.dataset.visitDate = record.visit_date || "";
-    if (summary && hasField("summary")) summary.textContent = record.summary || "";
-    if (cover && hasField("cover_src")) {
-      if (record.cover_src) {
-        if (cover.src !== record.cover_src) {
-          cover.classList.remove("is-loaded");
-          delete cover.dataset.smoothReady;
-        }
-        cover.src = record.cover_src;
-        cover.hidden = false;
-        prepareSmoothImage(cover);
-      } else {
-        cover.removeAttribute("src");
-        cover.hidden = true;
-        cover.classList.remove("is-loaded");
-        delete cover.dataset.smoothReady;
-      }
-    }
-  });
-}
-
-function sortRecordRows(recordsById) {
-  if (!recordList) return;
-
-  const rows = Array.from(recordList.querySelectorAll("[data-record-id]"));
-  rows
-    .sort((a, b) => {
-      const aDate = visitDateTimestamp(recordsById.get(a.dataset.recordId) || { visit_date: a.dataset.visitDate });
-      const bDate = visitDateTimestamp(recordsById.get(b.dataset.recordId) || { visit_date: b.dataset.visitDate });
-      return bDate - aDate;
-    })
-    .forEach((row, index) => {
-      const number = row.querySelector(".record-row__number");
-      if (number) number.textContent = String(index + 1).padStart(2, "0");
-      recordList.append(row);
-    });
-}
-
-const recordsById = new Map();
-
+const recordsById = new Map(fallbackRecords().map((record) => [record.id, record]));
 if (supabase) {
   const { data, error } = await supabase
     .from("exhibition_records")
     .select("id, title, institution, city, visit_date, summary, cover_src")
     .eq("published", true)
     .order("visit_date", { ascending: false, nullsFirst: false });
-
   if (!error && data) {
+    recordsById.clear();
     data.forEach((record) => recordsById.set(record.id, record));
   }
 }
-
-const localRecords = loadLocalRecords();
-Object.entries(localRecords).forEach(([id, record]) => {
-  recordsById.set(id, {
-    ...(recordsById.get(id) || {}),
-    ...record,
-  });
+Object.entries(loadLocalRecords()).forEach(([id, record]) => {
+  recordsById.set(id, { ...(recordsById.get(id) || {}), ...record });
 });
 
 async function refreshOwnerAccess() {
   let session = null;
-
-  if (supabase) {
-    const response = await supabase.auth.getSession();
-    session = response.data.session;
-  }
-
-  if (createNoteButton) {
-    createNoteButton.hidden = !(session || hasLocalOwnerAccess());
-  }
+  if (supabase) session = (await supabase.auth.getSession()).data.session;
+  if (createNoteButton) createNoteButton.hidden = !(session || hasLocalOwnerAccess());
   return Boolean(session);
 }
 
@@ -247,26 +198,11 @@ createNoteButton?.addEventListener("click", async () => {
   const id = `fn-${Date.now()}`;
   const today = new Date().toISOString().slice(0, 10);
   const record = {
-    id,
-    title: "Untitled record",
-    title_zh: null,
-    institution: null,
-    city: null,
-    country: null,
-    visit_date: today,
-    exhibition_dates: null,
-    summary: null,
-    notes: [],
-    related_links: [],
-    cover_src: null,
-    published: true,
+    id, title: "Untitled record", title_zh: null, institution: null, city: null, country: null,
+    visit_date: today, exhibition_dates: null, summary: null, notes: [], related_links: [], cover_src: null, published: true,
   };
-
   if (supabase) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
+    const session = (await supabase.auth.getSession()).data.session;
     if (session) {
       const { error } = await supabase.from("exhibition_records").insert(record);
       if (error) throw error;
@@ -274,7 +210,6 @@ createNoteButton?.addEventListener("click", async () => {
       return;
     }
   }
-
   if (hasLocalOwnerAccess()) {
     const localRecords = loadLocalRecords();
     localRecords[id] = record;
@@ -283,15 +218,36 @@ createNoteButton?.addEventListener("click", async () => {
   }
 });
 
-if (supabase) {
-  supabase.auth.onAuthStateChange(() => {
-    refreshOwnerAccess();
-  });
-}
+if (supabase) supabase.auth.onAuthStateChange(() => refreshOwnerAccess());
 
-ensureRecordRows(recordsById);
-applyRecordUpdates(recordsById);
-sortRecordRows(recordsById);
-prepareSmoothImages();
+yearIndex?.addEventListener("click", (event) => {
+  const link = event.target.closest('a[href^="#archive-year-"]');
+  if (!link) return;
+  const target = document.querySelector(link.getAttribute("href"));
+  if (!target) return;
+  event.preventDefault();
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  history.replaceState(null, "", link.getAttribute("href"));
+});
+
+timeline?.addEventListener("click", (event) => {
+  const link = event.target.closest('a[href^="/record/"]');
+  if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  sessionStorage.setItem(ARCHIVE_SCROLL_KEY, String(window.scrollY));
+  sessionStorage.setItem(ARCHIVE_RETURN_KEY, "true");
+});
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) sessionStorage.removeItem(ARCHIVE_RETURN_KEY);
+});
+
+renderArchive(Array.from(recordsById.values()));
 await refreshOwnerAccess();
 document.body.classList.remove("is-syncing-records");
+
+if (sessionStorage.getItem(ARCHIVE_RETURN_KEY) === "true") {
+  const savedPosition = Number(sessionStorage.getItem(ARCHIVE_SCROLL_KEY) || 0);
+  sessionStorage.removeItem(ARCHIVE_RETURN_KEY);
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: savedPosition, behavior: "auto" })));
+}
