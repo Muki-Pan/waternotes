@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import PhotographicNoteCard from "../components/PhotographicNoteCard.astro";
 import SiteNav from "../components/SiteNav.astro";
 import { records } from "../data/records.js";
 const archiveCity = (city = "") => String(city).trim();
@@ -59,7 +60,13 @@ const supabaseConfig = JSON.stringify({
             {years.map((year) => <a href={`#archive-year-${year}`}>{year}</a>)}
           </nav>
         </div>
-        <button class="button create-note-button" id="create-note" type="button" hidden>Create Note</button>
+        <div class="archive-create-tools" id="archive-create-tools" hidden>
+          <select id="create-note-type" aria-label="New note type">
+            <option value="exhibition">Exhibition Note</option>
+            <option value="photographic">Photographic Note</option>
+          </select>
+          <button class="button create-note-button" id="create-note" type="button">Create Note</button>
+        </div>
       </section>
 
       <div class="archive-timeline" id="archive-timeline" aria-label="Notes grouped by visit date and city">
@@ -74,19 +81,23 @@ const supabaseConfig = JSON.stringify({
                     {group.city && <p>{group.city}</p>}
                   </header>
                   <div class="archive-group__records">
-                    {group.records.map((record) => (
-                      <article class="archive-record" data-record-id={record.id}>
-                        <a class="record-cover" href={`/record/?id=${record.id}`}>
-                          <img class="smooth-image" src={record.images?.[0]?.src || ""} alt="" loading="lazy"
-                            decoding="async" data-cover-record={record.id} hidden={!record.images?.[0]?.src} />
-                        </a>
-                        <div class="archive-record__copy">
-                          <a class="record-row__title" href={`/record/?id=${record.id}`}>{record.title}</a>
-                          {record.institution && <p class="archive-record__institution">{record.institution}</p>}
-                          {record.summary && <p class="record-row__summary">{record.summary}</p>}
-                        </div>
-                      </article>
-                    ))}
+                    {group.records.map((record) =>
+                      (record.note_type || record.noteType) === "photographic" ? (
+                        <PhotographicNoteCard record={record} />
+                      ) : (
+                        <article class="archive-record" data-record-id={record.id}>
+                          <a class="record-cover" href={`/record/?id=${record.id}`}>
+                            <img class="smooth-image" src={record.images?.[0]?.src || ""} alt="" loading="lazy"
+                              decoding="async" data-cover-record={record.id} hidden={!record.images?.[0]?.src} />
+                          </a>
+                          <div class="archive-record__copy">
+                            <a class="record-row__title" href={`/record/?id=${record.id}`}>{record.title}</a>
+                            {record.institution && <p class="archive-record__institution">{record.institution}</p>}
+                            {record.summary && <p class="record-row__summary">{record.summary}</p>}
+                          </div>
+                        </article>
+                      )
+                    )}
                   </div>
                 </section>
               ))}

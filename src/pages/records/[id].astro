@@ -43,6 +43,7 @@ const supabaseConfig = JSON.stringify({
     <main class="page-shell record-shell">
       <a class="back-link" href="/notes">Back to All Notes</a>
       <header class="record-header">
+        <p class="note-type-label" id="record-type-label" hidden>Photographic Note</p>
         <h1 id="record-title">{record.title}</h1>
         <p id="record-title-zh" hidden={!record.titleZh}>{record.titleZh}</p>
         <div class="record-meta">
@@ -50,7 +51,7 @@ const supabaseConfig = JSON.stringify({
             <span>City</span>
             <strong id="record-location">{compactMeta([record.city, record.country])}</strong>
           </div>
-          <div>
+          <div id="record-institution-row">
             <span>Institution</span>
             <strong id="record-institution">{record.institution || "To be added"}</strong>
           </div>
@@ -58,13 +59,25 @@ const supabaseConfig = JSON.stringify({
             <span>Visit date</span>
             <strong id="record-visit-date">{formatDate(record.visitDate)}</strong>
           </div>
-          <div>
+          <div id="record-exhibition-dates-row">
             <span>Exhibition dates</span>
             <strong id="record-exhibition-dates">{record.exhibitionDates || "Not recorded"}</strong>
           </div>
+          <div id="record-route-row" hidden>
+            <span>Route</span>
+            <strong id="record-route"></strong>
+          </div>
         </div>
+        <p class="record-summary" id="record-summary" hidden></p>
       </header>
       <div id="record-details-tools" class="edit-tools record-details-tools" hidden>
+        <label>
+          <span>Note type</span>
+          <select id="record-type-editor">
+            <option value="exhibition">Exhibition Note</option>
+            <option value="photographic">Photographic Note</option>
+          </select>
+        </label>
         <label>
           <span>Title</span>
           <input id="record-title-editor" type="text" />
@@ -81,15 +94,19 @@ const supabaseConfig = JSON.stringify({
           <span>Country</span>
           <input id="record-country-editor" type="text" />
         </label>
-        <label>
+        <label id="record-institution-editor-row">
           <span>Institution</span>
           <input id="record-institution-editor" type="text" />
+        </label>
+        <label id="record-route-editor-row" hidden>
+          <span>Route</span>
+          <input id="record-route-editor" type="text" placeholder="代官山 → 涩谷" />
         </label>
         <label>
           <span>Visit date</span>
           <input id="record-visit-date-editor" type="date" />
         </label>
-        <label>
+        <label id="record-exhibition-dates-editor-row">
           <span>Exhibition dates</span>
           <input id="record-exhibition-dates-editor" type="text" />
         </label>

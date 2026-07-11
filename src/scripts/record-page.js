@@ -14,19 +14,30 @@ const bucketName = getSupabaseBucket();
 const supabase = getSupabase();
 
 const recordTitle = document.querySelector("#record-title");
+const recordTypeLabel = document.querySelector("#record-type-label");
 const recordTitleZh = document.querySelector("#record-title-zh");
 const recordLocation = document.querySelector("#record-location");
 const recordInstitution = document.querySelector("#record-institution");
+const recordInstitutionRow = document.querySelector("#record-institution-row");
 const recordVisitDate = document.querySelector("#record-visit-date");
 const recordExhibitionDates = document.querySelector("#record-exhibition-dates");
+const recordExhibitionDatesRow = document.querySelector("#record-exhibition-dates-row");
+const recordSummary = document.querySelector("#record-summary");
+const recordRouteRow = document.querySelector("#record-route-row");
+const recordRoute = document.querySelector("#record-route");
 const recordDetailsTools = document.querySelector("#record-details-tools");
 const recordTitleEditor = document.querySelector("#record-title-editor");
+const recordTypeEditor = document.querySelector("#record-type-editor");
 const recordTitleZhEditor = document.querySelector("#record-title-zh-editor");
 const recordCityEditor = document.querySelector("#record-city-editor");
 const recordCountryEditor = document.querySelector("#record-country-editor");
 const recordInstitutionEditor = document.querySelector("#record-institution-editor");
+const recordInstitutionEditorRow = document.querySelector("#record-institution-editor-row");
+const recordRouteEditor = document.querySelector("#record-route-editor");
+const recordRouteEditorRow = document.querySelector("#record-route-editor-row");
 const recordVisitDateEditor = document.querySelector("#record-visit-date-editor");
 const recordExhibitionDatesEditor = document.querySelector("#record-exhibition-dates-editor");
+const recordExhibitionDatesEditorRow = document.querySelector("#record-exhibition-dates-editor-row");
 const recordSummaryEditor = document.querySelector("#record-summary-editor");
 const saveRecordDetails = document.querySelector("#save-record-details");
 const notesView = document.querySelector("#notes-view");
@@ -181,6 +192,8 @@ function getEditableField(key, fallback = "") {
 
 function getRecordDetails() {
   return {
+    note_type: getEditableField("note_type", record.noteType || "exhibition"),
+    route: getEditableField("route", record.route),
     title: getEditableField("title", record.title),
     title_zh: getEditableField("title_zh", record.titleZh),
     institution: getEditableField("institution", record.institution),
@@ -197,7 +210,9 @@ function staticRecordPayload() {
 
   return {
     id: recordId,
-    title: details.title,
+    title: details.title || "",
+    note_type: details.note_type || "exhibition",
+    route: details.route || null,
     title_zh: details.title_zh || null,
     institution: details.institution || null,
     city: details.city || null,
@@ -279,22 +294,37 @@ function prepareSmoothImages() {
 function renderRecordDetails() {
   const details = getRecordDetails();
   const location = compactMeta([details.city, details.country]);
+  const isPhotographic = details.note_type === "photographic";
 
-  recordTitle.textContent = details.title || "Untitled record";
+  document.body.classList.toggle("is-photographic-note", isPhotographic);
+  recordTypeLabel.hidden = !isPhotographic;
+  recordTitle.textContent = details.title || "";
+  recordTitle.hidden = isPhotographic && !details.title;
   recordTitleZh.textContent = details.title_zh || "";
   recordTitleZh.hidden = !details.title_zh;
   recordLocation.textContent = location || "Location unknown";
   recordInstitution.textContent = details.institution || "To be added";
+  recordInstitutionRow.hidden = isPhotographic;
   recordVisitDate.textContent = formatDate(details.visit_date);
   recordExhibitionDates.textContent = details.exhibition_dates || "Not recorded";
+  recordExhibitionDatesRow.hidden = isPhotographic;
+  recordRoute.textContent = details.route || "";
+  recordRouteRow.hidden = !isPhotographic || !details.route;
+  recordSummary.textContent = details.summary || "";
+  recordSummary.hidden = !isPhotographic || !details.summary;
+  recordRouteEditorRow.hidden = !isPhotographic;
+  recordInstitutionEditorRow.hidden = isPhotographic;
+  recordExhibitionDatesEditorRow.hidden = isPhotographic;
 
-  document.title = `${details.title || "Untitled record"} | Water Notes`;
+  document.title = `${details.title || (isPhotographic ? "Photographic Note" : "Untitled record")} | Water Notes`;
 
+  recordTypeEditor.value = details.note_type || "exhibition";
   recordTitleEditor.value = details.title || "";
   recordTitleZhEditor.value = details.title_zh || "";
   recordCityEditor.value = details.city || "";
   recordCountryEditor.value = details.country || "";
   recordInstitutionEditor.value = details.institution || "";
+  recordRouteEditor.value = details.route || "";
   recordVisitDateEditor.value = details.visit_date || "";
   recordExhibitionDatesEditor.value = details.exhibition_dates || "";
   recordSummaryEditor.value = details.summary || "";
@@ -317,8 +347,14 @@ function renderImages() {
           </button>
           ${
             ownerActive
-              ? `<div class="image-actions">
-                  <button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${
+                      ? `<div class="image-actions">
+                          ${
+                            image.source === "base" || (image.source === "remote" && !ownerSessionActive)
+                              ? ""
+                              : `<button class="image-order-button" type="button" data-move-image-index="${index}" data-move-direction="-1" aria-label="Move image earlier">Earlier</button>
+                                 <button class="image-order-button" type="button" data-move-image-index="${index}" data-move-direction="1" aria-label="Move image later">Later</button>`
+                          }
+                          <button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${
                     image.src === coverImage?.src ? "Cover" : "Set cover"
                   }</button>
                   ${
@@ -380,10 +416,10 @@ async function loadRemoteData() {
     return;
   }
 
-  const [{ data: recordData }, { data: imageData }] = await Promise.all([
+  let [{ data: recordData, error: recordError }, { data: imageData }] = await Promise.all([
     supabase
       .from("exhibition_records")
-      .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
+      .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, route")
       .eq("id", recordId)
       .maybeSingle(),
     supabase
@@ -393,12 +429,22 @@ async function loadRemoteData() {
       .order("sort_order", { ascending: true }),
   ]);
 
+  if (recordError) {
+    const fallbackResponse = await supabase
+      .from("exhibition_records")
+      .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
+      .eq("id", recordId)
+      .maybeSingle();
+    recordData = fallbackResponse.data ? { ...fallbackResponse.data, note_type: "exhibition", route: null } : null;
+  }
+
   remoteRecord = recordData || null;
   remoteImages = (imageData || []).map((image) => ({
     id: image.id,
     source: "remote",
     storagePath: image.storage_path,
     src: image.src || supabase.storage.from(bucketName).getPublicUrl(image.storage_path).data.publicUrl,
+    sortOrder: image.sort_order || 0,
   }));
 
   renderAll();
@@ -443,7 +489,7 @@ async function upsertRecord(changes = {}) {
   const { data, error } = await supabase
     .from("exhibition_records")
     .upsert(payload, { onConflict: "id" })
-    .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
+    .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, route")
     .single();
 
   if (error) throw error;
@@ -480,6 +526,29 @@ async function deleteImage(image) {
   remoteImages = remoteImages.filter((remoteImage) => remoteImage.id !== image.id);
   if (remoteRecord?.cover_src === image.src) {
     await upsertRecord({ cover_src: getImages()[0]?.src || null });
+  }
+  renderImages();
+}
+
+async function moveImage(image, direction) {
+  if (!ownerActive || image.source === "base") return;
+  const collection = image.source === "remote" ? remoteImages : localImages;
+  const currentIndex = collection.findIndex((item) => item.id === image.id);
+  const nextIndex = currentIndex + direction;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= collection.length) return;
+
+  [collection[currentIndex], collection[nextIndex]] = [collection[nextIndex], collection[currentIndex]];
+  if (image.source === "local") {
+    saveLocalImages(collection);
+  } else {
+    if (!ownerSessionActive || !supabase) return;
+    const updates = collection.map((item, index) =>
+      supabase.from("exhibition_images").update({ sort_order: index }).eq("id", item.id)
+    );
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed) throw failed.error;
+    collection.forEach((item, index) => { item.sortOrder = index; });
   }
   renderImages();
 }
@@ -523,9 +592,22 @@ saveNotes.addEventListener("click", async () => {
 
 saveRecordDetails.addEventListener("click", async () => {
   const details = getRecordDetails();
+  const noteType = recordTypeEditor.value;
+  const title = recordTitleEditor.value.trim();
+
+  if (!recordVisitDateEditor.value && !details.visit_date) {
+    window.alert("Visit date is required.");
+    return;
+  }
+  if (noteType === "photographic" && getImages().length < 1) {
+    window.alert("Photographic Note requires at least one image.");
+    return;
+  }
 
   await upsertRecord({
-    title: recordTitleEditor.value.trim() || "Untitled record",
+    note_type: noteType,
+    route: recordRouteEditor.value.trim() || null,
+    title: noteType === "photographic" ? title : title || "Untitled record",
     title_zh: recordTitleZhEditor.value.trim() || null,
     city: recordCityEditor.value.trim() || null,
     country: recordCountryEditor.value.trim() || null,
@@ -535,6 +617,13 @@ saveRecordDetails.addEventListener("click", async () => {
     summary: recordSummaryEditor.value.trim() || null,
   });
   renderRecordDetails();
+});
+
+recordTypeEditor.addEventListener("change", () => {
+  const isPhotographic = recordTypeEditor.value === "photographic";
+  recordRouteEditorRow.hidden = !isPhotographic;
+  recordInstitutionEditorRow.hidden = isPhotographic;
+  recordExhibitionDatesEditorRow.hidden = isPhotographic;
 });
 
 imageFiles.addEventListener("change", async () => {
@@ -637,6 +726,13 @@ saveLinks.addEventListener("click", async () => {
 });
 
 imagesView.addEventListener("click", async (event) => {
+  const moveButton = event.target.closest("[data-move-image-index]");
+  if (moveButton) {
+    const image = getImages()[Number(moveButton.dataset.moveImageIndex)];
+    if (image) await moveImage(image, Number(moveButton.dataset.moveDirection));
+    return;
+  }
+
   const coverButton = event.target.closest("[data-cover-index]");
   if (coverButton && ownerActive) {
     const image = getImages()[Number(coverButton.dataset.coverIndex)];

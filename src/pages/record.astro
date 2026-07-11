@@ -11,6 +11,8 @@ const defaultRecord = {
   visitDate: new Date().toISOString().slice(0, 10),
   exhibitionDates: "",
   summary: "",
+  noteType: "exhibition",
+  route: "",
   notes: [],
   images: [],
   relatedLinks: [],
@@ -39,6 +41,7 @@ const supabaseConfig = JSON.stringify({
       <a class="back-link" href="/notes">返回 All Notes</a>
       <header class="record-header">
         <span id="record-id-label" hidden></span>
+        <p class="note-type-label" id="record-type-label" hidden>Photographic Note</p>
         <h1 id="record-title">Untitled record</h1>
         <p id="record-title-zh" hidden></p>
         <div class="record-meta">
@@ -46,7 +49,7 @@ const supabaseConfig = JSON.stringify({
             <span>City</span>
             <strong id="record-location">Location unknown</strong>
           </div>
-          <div>
+          <div id="record-institution-row">
             <span>Institution</span>
             <strong id="record-institution">To be added</strong>
           </div>
@@ -54,13 +57,25 @@ const supabaseConfig = JSON.stringify({
             <span>Visit date</span>
             <strong id="record-visit-date">Date unknown</strong>
           </div>
-          <div>
+          <div id="record-exhibition-dates-row">
             <span>Exhibition dates</span>
             <strong id="record-exhibition-dates">Not recorded</strong>
           </div>
+          <div id="record-route-row" hidden>
+            <span>Route</span>
+            <strong id="record-route"></strong>
+          </div>
         </div>
+        <p class="record-summary" id="record-summary" hidden></p>
       </header>
       <div id="record-details-tools" class="edit-tools record-details-tools" hidden>
+        <label>
+          <span>Note type</span>
+          <select id="record-type-editor">
+            <option value="exhibition">Exhibition Note</option>
+            <option value="photographic">Photographic Note</option>
+          </select>
+        </label>
         <label>
           <span>Title</span>
           <input id="record-title-editor" type="text" />
@@ -77,15 +92,19 @@ const supabaseConfig = JSON.stringify({
           <span>Country</span>
           <input id="record-country-editor" type="text" />
         </label>
-        <label>
+        <label id="record-institution-editor-row">
           <span>Institution</span>
           <input id="record-institution-editor" type="text" />
+        </label>
+        <label id="record-route-editor-row" hidden>
+          <span>Route</span>
+          <input id="record-route-editor" type="text" placeholder="代官山 → 涩谷" />
         </label>
         <label>
           <span>Visit date</span>
           <input id="record-visit-date-editor" type="date" />
         </label>
-        <label>
+        <label id="record-exhibition-dates-editor-row">
           <span>Exhibition dates</span>
           <input id="record-exhibition-dates-editor" type="text" />
         </label>
