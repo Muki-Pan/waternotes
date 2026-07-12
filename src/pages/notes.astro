@@ -1,7 +1,9 @@
 ---
 import "../styles/global.css";
+import FieldNoteCard from "../components/FieldNoteCard.astro";
 import PhotographicNoteCard from "../components/PhotographicNoteCard.astro";
 import SiteNav from "../components/SiteNav.astro";
+import CollageLayer from "../components/collage/CollageLayer.astro";
 import { records } from "../data/records.js";
 const archiveCity = (city = "") => String(city).trim();
 const visitDate = (record) => record.visitDate || record.visit_date || "";
@@ -25,6 +27,13 @@ function groupArchive(sourceRecords) {
     if (!groups.has(groupKey)) groups.set(groupKey, { date, city: record.city?.trim() || "", records: [] });
     groups.get(groupKey).records.push(record);
   });
+
+  sections.forEach((groups) => groups.forEach((group) => {
+    group.records.sort((a, b) =>
+      (Number(a.archive_order ?? a.archiveOrder) || 0) - (Number(b.archive_order ?? b.archiveOrder) || 0)
+      || String(a.id).localeCompare(String(b.id))
+    );
+  }));
 
   const result = Array.from(sections, ([year, groups]) => ({ year, groups: Array.from(groups.values()) }));
   if (undated.length) result.push({ year: "undated", groups: [{ date: "", city: "", records: undated }] });
@@ -64,8 +73,10 @@ const supabaseConfig = JSON.stringify({
           <select id="create-note-type" aria-label="New note type">
             <option value="exhibition">Exhibition Note</option>
             <option value="photographic">Photographic Note</option>
+            <option value="field">Field Note</option>
           </select>
           <button class="button create-note-button" id="create-note" type="button">Create Note</button>
+          <button class="button edit-collage-button" id="edit-collage" type="button" hidden>Edit Collage</button>
         </div>
       </section>
 
@@ -75,7 +86,7 @@ const supabaseConfig = JSON.stringify({
             <h2>{section.year === "undated" ? "Undated / 日期未定" : section.year}</h2>
             <div class="archive-year__groups">
               {section.groups.map((group) => (
-                <section class="archive-group">
+                <section class="archive-group" data-date={group.date || undefined}>
                   <header class="archive-group__header">
                     <h3>{group.date ? formatGroupDate(group.date) : "Undated / 日期未定"}</h3>
                     {group.city && <p>{group.city}</p>}
@@ -84,6 +95,8 @@ const supabaseConfig = JSON.stringify({
                     {group.records.map((record) =>
                       (record.note_type || record.noteType) === "photographic" ? (
                         <PhotographicNoteCard record={record} />
+                      ) : (record.note_type || record.noteType) === "field" ? (
+                        <FieldNoteCard record={record} />
                       ) : (
                         <article class="archive-record" data-record-id={record.id}>
                           <a class="record-cover" href={`/record/?id=${record.id}`}>
@@ -105,10 +118,12 @@ const supabaseConfig = JSON.stringify({
           </section>
         ))}
       </div>
+      <CollageLayer />
     </main>
     <footer class="site-credit"><a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a></footer>
     <script type="application/json" id="archive-fallback-data" set:html={fallbackRecords}></script>
     <script type="application/json" id="supabase-config" set:html={supabaseConfig}></script>
     <script>import "../scripts/index-page.js";</script>
+    <script>import "../scripts/collage-editor.js";</script>
   </body>
 </html>

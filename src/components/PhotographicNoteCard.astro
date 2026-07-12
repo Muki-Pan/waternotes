@@ -2,7 +2,9 @@
 const { record } = Astro.props;
 const images = [...(record.images || [])]
   .sort((a, b) => (a.sort_order || a.sortOrder || 0) - (b.sort_order || b.sortOrder || 0));
-const previews = images.slice(0, 3);
+const selectedIds = record.photographic_cover_image_ids || record.photographicCoverImageIds || [];
+const selected = images.filter((image) => selectedIds.includes(image.id));
+const previews = (selected.length ? selected : images).slice(0, 3);
 const count = images.length;
 const href = `/record/?id=${record.id}`;
 const countLabel = `${count} ${count === 1 ? "photograph" : "photographs"}`;
@@ -13,8 +15,7 @@ const countLabel = `${count} ${count === 1 ? "photograph" : "photographs"}`;
     <div class="photographic-card__copy">
       <span class="note-type-label">Photographic Note</span>
       {record.title && <h4>{record.title}</h4>}
-      {(record.route || record.city) && <p class="photographic-card__route">{record.route || record.city}</p>}
-      {record.summary && <p class="photographic-card__summary">{record.summary}</p>}
+      {record.city && <p class="photographic-card__route">{record.city}</p>}
     </div>
     <div class={`photographic-card__previews photographic-card__previews--${previews.length}`} aria-hidden="true">
       {previews.map((image) => <img src={image.src} alt="" loading="lazy" decoding="async" />)}

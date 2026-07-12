@@ -169,7 +169,6 @@ dist/
 | `title_zh` | text | 中文标题 |
 | `institution` | text | 展馆 / 机构 |
 | `city` | text | 城市 |
-| `country` | text | 国家 |
 | `visit_date` | date | 观看 / 记录日期 |
 | `exhibition_dates` | text | 展期 |
 | `summary` | text | 简介 |

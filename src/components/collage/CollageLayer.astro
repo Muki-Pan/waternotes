@@ -1,0 +1,31 @@
+<div class="collage-layer" id="collage-layer" aria-label="Date-anchored collage"></div>
+
+<aside class="collage-editor" id="collage-editor" hidden>
+  <div class="collage-editor__header" id="collage-editor-drag-handle">
+    <strong>Collage</strong>
+    <span id="collage-save-state">Saved</span>
+  </div>
+  <label>
+    <span>Upload image</span>
+    <input id="collage-upload" type="file" accept="image/png,image/jpeg,image/webp" />
+  </label>
+  <label>
+    <span>Upload date</span>
+    <select id="collage-upload-date"></select>
+  </label>
+  <div class="collage-selection-tools" id="collage-selection-tools" hidden>
+    <label><span>Anchor date</span><select id="collage-anchor-date"></select></label>
+    <label><span>Link note</span><select id="collage-related-note"></select></label>
+    <label><span>Rotation</span><input id="collage-rotation" type="range" min="-15" max="15" step="1" value="0" /></label>
+    <label><span>Size</span><input id="collage-width" type="range" min="80" max="520" step="5" value="210" /></label>
+    <div class="collage-editor__actions">
+      <button type="button" id="collage-forward">Bring forward</button>
+      <button type="button" id="collage-backward">Send backward</button>
+      <button type="button" id="collage-delete">Delete</button>
+    </div>
+  </div>
+  <div class="collage-editor__footer">
+    <button class="button" type="button" id="collage-save">Save Layout</button>
+    <button class="button" type="button" id="collage-exit">Exit</button>
+  </div>
+</aside>

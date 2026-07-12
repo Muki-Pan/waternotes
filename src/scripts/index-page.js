@@ -12,6 +12,8 @@ const createNoteType = document.querySelector("#create-note-type");
 const createTools = document.querySelector("#archive-create-tools");
 const ARCHIVE_SCROLL_KEY = "water-notes-archive-scroll";
 const ARCHIVE_RETURN_KEY = "water-notes-archive-return";
+let currentOwnerSession = null;
+let isCreatingNote = false;
 
 function fallbackRecords() {
   try {
@@ -87,6 +89,14 @@ function groupArchive(records) {
     groups.get(key).records.push(record);
   });
 
+  sections.forEach((groups) => groups.forEach((group) => {
+    group.records.sort((a, b) =>
+      (Number(a.archive_order) || 0) - (Number(b.archive_order) || 0)
+      || String(a.created_at || "").localeCompare(String(b.created_at || ""))
+      || String(a.id).localeCompare(String(b.id))
+    );
+  }));
+
   const result = Array.from(sections, ([year, groups]) => ({ year, groups: Array.from(groups.values()) }));
   if (undated.length) result.push({ year: "undated", groups: [{ date: "", city: "", records: undated }] });
   return result;
@@ -101,6 +111,7 @@ function element(tag, className, text) {
 
 function createRecord(record) {
   if (record.note_type === "photographic") return createPhotographicRecord(record);
+  if (record.note_type === "field") return createFieldRecord(record);
 
   const article = element("article", "archive-record");
   article.dataset.recordId = record.id;
@@ -134,11 +145,12 @@ function createPhotographicRecord(record) {
   const copy = element("div", "photographic-card__copy");
   copy.append(element("span", "note-type-label", "Photographic Note"));
   if (record.title) copy.append(element("h4", "", record.title));
-  if (record.route || record.city) copy.append(element("p", "photographic-card__route", record.route || record.city));
-  if (record.summary) copy.append(element("p", "photographic-card__summary", record.summary));
+  if (record.city) copy.append(element("p", "photographic-card__route", record.city));
 
   const orderedImages = [...(record.images || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const previews = orderedImages.slice(0, 3);
+  const selectedIds = Array.isArray(record.photographic_cover_image_ids) ? record.photographic_cover_image_ids : [];
+  const selectedImages = orderedImages.filter((image) => selectedIds.includes(image.id));
+  const previews = (selectedImages.length ? selectedImages : orderedImages).slice(0, 3);
   const previewArea = element("div", `photographic-card__previews photographic-card__previews--${previews.length}`);
   previewArea.setAttribute("aria-hidden", "true");
   previews.forEach((preview) => {
@@ -163,8 +175,24 @@ function createPhotographicRecord(record) {
   return article;
 }
 
+function createFieldRecord(record) {
+  const article = element("article", "field-note-card archive-record");
+  article.dataset.recordId = record.id;
+  const link = element("a", "field-note-card__link");
+  link.href = recordHref(record.id);
+  link.append(element("span", "note-type-label", "Field Note"));
+  if (record.title) link.append(element("h4", "", record.title));
+  if (record.institution) link.append(element("p", "field-note-card__institution", record.institution));
+  if (record.summary) link.append(element("p", "field-note-card__summary", record.summary));
+  const read = element("span", "field-note-card__read", "Read note →");
+  link.append(read);
+  article.append(link);
+  return article;
+}
+
 function createGroup(group) {
   const section = element("section", "archive-group");
+  if (group.date) section.dataset.date = group.date;
   const header = element("header", "archive-group__header");
   header.append(element("h3", "", group.date ? formatGroupDate(group.date) : "Undated / 日期未定"));
   if (group.city) header.append(element("p", "", group.city));
@@ -197,6 +225,7 @@ function renderArchive(records) {
     timeline.append(section);
   });
   prepareSmoothImages();
+  window.dispatchEvent(new CustomEvent("water-notes-archive-rendered"));
 }
 
 function prepareSmoothImage(image) {
@@ -214,17 +243,27 @@ const recordsById = new Map(fallbackRecords().map((record) => [record.id, record
 if (supabase) {
   let { data, error } = await supabase
     .from("exhibition_records")
-    .select("id, title, institution, city, visit_date, summary, cover_src, note_type, route")
+    .select("id, title, institution, city, visit_date, summary, cover_src, note_type, photographic_cover_image_ids, archive_order, created_at")
     .eq("published", true)
     .order("visit_date", { ascending: false, nullsFirst: false });
   if (error) {
-    const fallbackResponse = await supabase
+    const typedFallback = await supabase
+      .from("exhibition_records")
+      .select("id, title, institution, city, visit_date, summary, cover_src, note_type, created_at")
+      .eq("published", true)
+      .order("visit_date", { ascending: false, nullsFirst: false });
+    if (!typedFallback.error) {
+      data = typedFallback.data?.map((record) => ({ ...record, photographic_cover_image_ids: [] }));
+      error = null;
+    } else {
+      const fallbackResponse = await supabase
       .from("exhibition_records")
       .select("id, title, institution, city, visit_date, summary, cover_src")
       .eq("published", true)
       .order("visit_date", { ascending: false, nullsFirst: false });
-    data = fallbackResponse.data?.map((record) => ({ ...record, note_type: "exhibition", route: null }));
-    error = fallbackResponse.error;
+      data = fallbackResponse.data?.map((record) => ({ ...record, note_type: "exhibition", photographic_cover_image_ids: [] }));
+      error = fallbackResponse.error;
+    }
   }
   if (!error && data) {
     recordsById.clear();
@@ -255,6 +294,7 @@ Object.entries(loadLocalImages()).forEach(([id, images]) => {
 async function refreshOwnerAccess() {
   let session = null;
   if (supabase) session = (await supabase.auth.getSession()).data.session;
+  currentOwnerSession = session;
   if (createTools) createTools.hidden = !(session || hasLocalOwnerAccess());
   return Boolean(session);
 }
@@ -273,28 +313,46 @@ window.fieldNotesSignOut = async () => {
 };
 
 createNoteButton?.addEventListener("click", async () => {
+  if (isCreatingNote) return;
+  isCreatingNote = true;
+  const originalLabel = createNoteButton.textContent;
+  createNoteButton.disabled = true;
+  createNoteButton.textContent = "Creating…";
+  createTools?.setAttribute("aria-busy", "true");
+
   const id = `fn-${Date.now()}`;
   const today = new Date().toISOString().slice(0, 10);
-  const noteType = createNoteType?.value === "photographic" ? "photographic" : "exhibition";
+  const selectedType = createNoteType?.value;
+  const noteType = ["photographic", "field"].includes(selectedType) ? selectedType : "exhibition";
   const record = {
-    id, title: noteType === "photographic" ? "" : "Untitled record", title_zh: null, institution: null, city: null, country: null,
+    id, title: noteType === "photographic" ? "" : "Untitled record", title_zh: null, institution: null, city: null,
     visit_date: today, exhibition_dates: null, summary: null, notes: [], related_links: [], cover_src: null, published: true,
-    note_type: noteType, route: null,
+    note_type: noteType, photographic_cover_image_ids: [],
+    archive_order: 0,
   };
-  if (supabase) {
-    const session = (await supabase.auth.getSession()).data.session;
-    if (session) {
+  try {
+    if (supabase && currentOwnerSession) {
       const { error } = await supabase.from("exhibition_records").insert(record);
       if (error) throw error;
       window.location.href = recordHref(id);
       return;
     }
-  }
-  if (hasLocalOwnerAccess()) {
-    const localRecords = loadLocalRecords();
-    localRecords[id] = record;
-    localStorage.setItem(LOCAL_RECORDS_KEY, JSON.stringify(localRecords));
-    window.location.href = recordHref(id);
+    if (hasLocalOwnerAccess()) {
+      const localRecords = loadLocalRecords();
+      localRecords[id] = record;
+      localStorage.setItem(LOCAL_RECORDS_KEY, JSON.stringify(localRecords));
+      window.location.href = recordHref(id);
+      return;
+    }
+    throw new Error("Owner session is no longer active. Please sign in again.");
+  } catch (error) {
+    console.error("Create Note failed:", error);
+    window.alert(`Create Note failed: ${error?.message || "Unknown error"}`);
+  } finally {
+    isCreatingNote = false;
+    createNoteButton.disabled = false;
+    createNoteButton.textContent = originalLabel;
+    createTools?.removeAttribute("aria-busy");
   }
 });
 
@@ -329,5 +387,6 @@ document.body.classList.remove("is-syncing-records");
 if (sessionStorage.getItem(ARCHIVE_RETURN_KEY) === "true") {
   const savedPosition = Number(sessionStorage.getItem(ARCHIVE_SCROLL_KEY) || 0);
   sessionStorage.removeItem(ARCHIVE_RETURN_KEY);
-  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: savedPosition, behavior: "auto" })));
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: savedPosition, behavior: reduceMotion ? "auto" : "smooth" })));
 }

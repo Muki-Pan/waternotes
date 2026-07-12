@@ -23,3 +23,22 @@ export function getSupabaseBucket() {
   const config = configElement ? JSON.parse(configElement.textContent || "{}") : {};
   return config.bucket || "field-notes";
 }
+
+if (typeof window !== "undefined") {
+  window.fieldNotesSignIn = async (email, password) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    window.dispatchEvent(new CustomEvent("field-notes-auth-change", { detail: { session: data.session } }));
+    return data.session;
+  };
+
+  window.fieldNotesSignOut = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    window.dispatchEvent(new CustomEvent("field-notes-auth-change", { detail: { session: null } }));
+  };
+}

@@ -23,22 +23,19 @@ const recordVisitDate = document.querySelector("#record-visit-date");
 const recordExhibitionDates = document.querySelector("#record-exhibition-dates");
 const recordExhibitionDatesRow = document.querySelector("#record-exhibition-dates-row");
 const recordSummary = document.querySelector("#record-summary");
-const recordRouteRow = document.querySelector("#record-route-row");
-const recordRoute = document.querySelector("#record-route");
 const recordDetailsTools = document.querySelector("#record-details-tools");
 const recordTitleEditor = document.querySelector("#record-title-editor");
 const recordTypeEditor = document.querySelector("#record-type-editor");
 const recordTitleZhEditor = document.querySelector("#record-title-zh-editor");
 const recordCityEditor = document.querySelector("#record-city-editor");
-const recordCountryEditor = document.querySelector("#record-country-editor");
 const recordInstitutionEditor = document.querySelector("#record-institution-editor");
 const recordInstitutionEditorRow = document.querySelector("#record-institution-editor-row");
-const recordRouteEditor = document.querySelector("#record-route-editor");
-const recordRouteEditorRow = document.querySelector("#record-route-editor-row");
 const recordVisitDateEditor = document.querySelector("#record-visit-date-editor");
+const recordArchiveOrderEditor = document.querySelector("#record-archive-order-editor");
 const recordExhibitionDatesEditor = document.querySelector("#record-exhibition-dates-editor");
 const recordExhibitionDatesEditorRow = document.querySelector("#record-exhibition-dates-editor-row");
 const recordSummaryEditor = document.querySelector("#record-summary-editor");
+const recordSummaryEditorRow = document.querySelector("#record-summary-editor-row");
 const saveRecordDetails = document.querySelector("#save-record-details");
 const notesView = document.querySelector("#notes-view");
 const notesTools = document.querySelector("#notes-tools");
@@ -48,6 +45,7 @@ const imagesView = document.querySelector("#images-view");
 const imagesEmpty = document.querySelector("#images-empty");
 const imageTools = document.querySelector("#image-tools");
 const imageFiles = document.querySelector("#image-files");
+const recordImagesSection = document.querySelector("#record-images-section");
 const linksView = document.querySelector("#links-view");
 const linksEmpty = document.querySelector("#links-empty");
 const linkTools = document.querySelector("#link-tools");
@@ -59,6 +57,8 @@ const lightboxImage = document.querySelector("#lightbox-image");
 const lightboxClose = document.querySelector("#lightbox-close");
 const lightboxPrev = document.querySelector("#lightbox-prev");
 const lightboxNext = document.querySelector("#lightbox-next");
+const recordDangerTools = document.querySelector("#record-danger-tools");
+const deleteRecordButton = document.querySelector("#delete-record");
 
 let ownerActive = false;
 let ownerSessionActive = false;
@@ -193,13 +193,13 @@ function getEditableField(key, fallback = "") {
 function getRecordDetails() {
   return {
     note_type: getEditableField("note_type", record.noteType || "exhibition"),
-    route: getEditableField("route", record.route),
+    photographic_cover_image_ids: getEditableField("photographic_cover_image_ids", record.photographicCoverImageIds || []),
     title: getEditableField("title", record.title),
     title_zh: getEditableField("title_zh", record.titleZh),
     institution: getEditableField("institution", record.institution),
     city: getEditableField("city", record.city),
-    country: getEditableField("country", record.country),
     visit_date: getEditableField("visit_date", record.visitDate),
+    archive_order: Number(getEditableField("archive_order", record.archiveOrder || 0)) || 0,
     exhibition_dates: getEditableField("exhibition_dates", record.exhibitionDates),
     summary: getEditableField("summary", record.summary),
   };
@@ -212,12 +212,12 @@ function staticRecordPayload() {
     id: recordId,
     title: details.title || "",
     note_type: details.note_type || "exhibition",
-    route: details.route || null,
+    photographic_cover_image_ids: details.photographic_cover_image_ids || [],
     title_zh: details.title_zh || null,
     institution: details.institution || null,
     city: details.city || null,
-    country: details.country || null,
     visit_date: details.visit_date,
+    archive_order: details.archive_order || 0,
     exhibition_dates: details.exhibition_dates || null,
     summary: details.summary || null,
     notes: record.notes || [],
@@ -293,11 +293,14 @@ function prepareSmoothImages() {
 
 function renderRecordDetails() {
   const details = getRecordDetails();
-  const location = compactMeta([details.city, details.country]);
+  const location = details.city || "";
   const isPhotographic = details.note_type === "photographic";
+  const isField = details.note_type === "field";
 
   document.body.classList.toggle("is-photographic-note", isPhotographic);
-  recordTypeLabel.hidden = !isPhotographic;
+  document.body.classList.toggle("is-field-note", isField);
+  recordTypeLabel.hidden = !isPhotographic && !isField;
+  recordTypeLabel.textContent = isField ? "Field Note" : "Photographic Note";
   recordTitle.textContent = details.title || "";
   recordTitle.hidden = isPhotographic && !details.title;
   recordTitleZh.textContent = details.title_zh || "";
@@ -307,14 +310,13 @@ function renderRecordDetails() {
   recordInstitutionRow.hidden = isPhotographic;
   recordVisitDate.textContent = formatDate(details.visit_date);
   recordExhibitionDates.textContent = details.exhibition_dates || "Not recorded";
-  recordExhibitionDatesRow.hidden = isPhotographic;
-  recordRoute.textContent = details.route || "";
-  recordRouteRow.hidden = !isPhotographic || !details.route;
+  recordExhibitionDatesRow.hidden = isPhotographic || isField;
   recordSummary.textContent = details.summary || "";
-  recordSummary.hidden = !isPhotographic || !details.summary;
-  recordRouteEditorRow.hidden = !isPhotographic;
+  recordSummary.hidden = !isField || !details.summary;
   recordInstitutionEditorRow.hidden = isPhotographic;
-  recordExhibitionDatesEditorRow.hidden = isPhotographic;
+  recordExhibitionDatesEditorRow.hidden = isPhotographic || isField;
+  recordSummaryEditorRow.hidden = isPhotographic;
+  recordImagesSection.hidden = isField;
 
   document.title = `${details.title || (isPhotographic ? "Photographic Note" : "Untitled record")} | Water Notes`;
 
@@ -322,10 +324,9 @@ function renderRecordDetails() {
   recordTitleEditor.value = details.title || "";
   recordTitleZhEditor.value = details.title_zh || "";
   recordCityEditor.value = details.city || "";
-  recordCountryEditor.value = details.country || "";
   recordInstitutionEditor.value = details.institution || "";
-  recordRouteEditor.value = details.route || "";
   recordVisitDateEditor.value = details.visit_date || "";
+  recordArchiveOrderEditor.value = String(details.archive_order || 0);
   recordExhibitionDatesEditor.value = details.exhibition_dates || "";
   recordSummaryEditor.value = details.summary || "";
 }
@@ -333,6 +334,11 @@ function renderRecordDetails() {
 function renderImages() {
   const images = getImages();
   const coverImage = getCoverImage();
+  const details = getRecordDetails();
+  const isPhotographic = details.note_type === "photographic";
+  const photographicCoverIds = Array.isArray(details.photographic_cover_image_ids)
+    ? details.photographic_cover_image_ids
+    : [];
   const columnCount = getMasonryColumnCount(images.length);
 
   masonryColumnCount = columnCount;
@@ -348,15 +354,9 @@ function renderImages() {
           ${
             ownerActive
                       ? `<div class="image-actions">
-                          ${
-                            image.source === "base" || (image.source === "remote" && !ownerSessionActive)
-                              ? ""
-                              : `<button class="image-order-button" type="button" data-move-image-index="${index}" data-move-direction="-1" aria-label="Move image earlier">Earlier</button>
-                                 <button class="image-order-button" type="button" data-move-image-index="${index}" data-move-direction="1" aria-label="Move image later">Later</button>`
-                          }
-                          <button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${
-                    image.src === coverImage?.src ? "Cover" : "Set cover"
-                  }</button>
+                          ${isPhotographic
+                            ? `<button class="cover-button${photographicCoverIds.includes(image.id) ? " is-active" : ""}" type="button" data-photo-cover-index="${index}">${photographicCoverIds.includes(image.id) ? "Preview" : "Add preview"}</button>`
+                            : `<button class="cover-button${image.src === coverImage?.src ? " is-active" : ""}" type="button" data-cover-index="${index}">${image.src === coverImage?.src ? "Cover" : "Set cover"}</button>`}
                   ${
                     image.source === "base" || (image.source === "remote" && !ownerSessionActive)
                       ? ""
@@ -406,6 +406,7 @@ function updateOwnerUi() {
   imageTools.hidden = !ownerActive;
   linkTools.hidden = !ownerActive;
   ownerState.hidden = !ownerActive;
+  recordDangerTools.hidden = !ownerActive;
   ownerState.textContent = ownerSessionActive ? "Owner editing is active." : "Local owner editing is active.";
   renderImages();
 }
@@ -419,7 +420,7 @@ async function loadRemoteData() {
   let [{ data: recordData, error: recordError }, { data: imageData }] = await Promise.all([
     supabase
       .from("exhibition_records")
-      .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, route")
+      .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, photographic_cover_image_ids, archive_order")
       .eq("id", recordId)
       .maybeSingle(),
     supabase
@@ -430,12 +431,21 @@ async function loadRemoteData() {
   ]);
 
   if (recordError) {
-    const fallbackResponse = await supabase
+    const typedFallback = await supabase
       .from("exhibition_records")
-      .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
+      .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type")
       .eq("id", recordId)
       .maybeSingle();
-    recordData = fallbackResponse.data ? { ...fallbackResponse.data, note_type: "exhibition", route: null } : null;
+    if (!typedFallback.error) {
+      recordData = typedFallback.data ? { ...typedFallback.data, photographic_cover_image_ids: [] } : null;
+    } else {
+      const fallbackResponse = await supabase
+        .from("exhibition_records")
+        .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
+        .eq("id", recordId)
+        .maybeSingle();
+      recordData = fallbackResponse.data ? { ...fallbackResponse.data, note_type: "exhibition", photographic_cover_image_ids: [] } : null;
+    }
   }
 
   remoteRecord = recordData || null;
@@ -489,7 +499,7 @@ async function upsertRecord(changes = {}) {
   const { data, error } = await supabase
     .from("exhibition_records")
     .upsert(payload, { onConflict: "id" })
-    .select("title, title_zh, institution, city, country, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, route")
+    .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, photographic_cover_image_ids, archive_order")
     .single();
 
   if (error) throw error;
@@ -498,6 +508,25 @@ async function upsertRecord(changes = {}) {
 
 async function setCover(image) {
   await upsertRecord({ cover_src: image.src });
+  renderImages();
+}
+
+async function togglePhotographicCover(image) {
+  const selected = Array.isArray(getRecordDetails().photographic_cover_image_ids)
+    ? [...getRecordDetails().photographic_cover_image_ids]
+    : [];
+  const existingIndex = selected.indexOf(image.id);
+  if (existingIndex >= 0) selected.splice(existingIndex, 1);
+  else {
+    if (selected.length >= 3) {
+      window.alert("You can select up to 3 preview images.");
+      return;
+    }
+    selected.push(image.id);
+  }
+  const selectedSet = new Set(selected);
+  const orderedIds = getImages().map((item) => item.id).filter((id) => selectedSet.has(id));
+  await upsertRecord({ photographic_cover_image_ids: orderedIds });
   renderImages();
 }
 
@@ -530,29 +559,6 @@ async function deleteImage(image) {
   renderImages();
 }
 
-async function moveImage(image, direction) {
-  if (!ownerActive || image.source === "base") return;
-  const collection = image.source === "remote" ? remoteImages : localImages;
-  const currentIndex = collection.findIndex((item) => item.id === image.id);
-  const nextIndex = currentIndex + direction;
-  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= collection.length) return;
-
-  [collection[currentIndex], collection[nextIndex]] = [collection[nextIndex], collection[currentIndex]];
-  if (image.source === "local") {
-    saveLocalImages(collection);
-  } else {
-    if (!ownerSessionActive || !supabase) return;
-    const updates = collection.map((item, index) =>
-      supabase.from("exhibition_images").update({ sort_order: index }).eq("id", item.id)
-    );
-    const results = await Promise.all(updates);
-    const failed = results.find((result) => result.error);
-    if (failed) throw failed.error;
-    collection.forEach((item, index) => { item.sortOrder = index; });
-  }
-  renderImages();
-}
-
 function openLightbox(index) {
   const images = getImages();
   if (!images.length) return;
@@ -580,6 +586,36 @@ window.fieldNotesSignOut = async () => {
   await refreshOwnerAccess();
 };
 
+deleteRecordButton.addEventListener("click", async () => {
+  if (!ownerActive || !window.confirm("Delete this note permanently? This cannot be undone.")) return;
+
+  if (ownerSessionActive && supabase) {
+    const storagePaths = remoteImages.map((image) => image.storagePath).filter(Boolean);
+    if (storagePaths.length) {
+      const { error: storageError } = await supabase.storage.from(bucketName).remove(storagePaths);
+      if (storageError) throw storageError;
+    }
+    const { error } = await supabase.from("exhibition_records").delete().eq("id", recordId);
+    if (error) throw error;
+    window.location.href = "/notes";
+    return;
+  }
+
+  if (localOwnerActive && localStorageAvailable()) {
+    const localRecords = JSON.parse(localStorage.getItem(LOCAL_RECORDS_KEY) || "{}");
+    const imagesByRecord = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
+    if (!localRecords[recordId]) {
+      window.alert("This fallback record cannot be deleted locally.");
+      return;
+    }
+    delete localRecords[recordId];
+    delete imagesByRecord[recordId];
+    localStorage.setItem(LOCAL_RECORDS_KEY, JSON.stringify(localRecords));
+    localStorage.setItem(LOCAL_IMAGES_KEY, JSON.stringify(imagesByRecord));
+    window.location.href = "/notes";
+  }
+});
+
 saveNotes.addEventListener("click", async () => {
   const notes = notesEditor.value
     .split(/\n{2,}/)
@@ -606,24 +642,25 @@ saveRecordDetails.addEventListener("click", async () => {
 
   await upsertRecord({
     note_type: noteType,
-    route: recordRouteEditor.value.trim() || null,
     title: noteType === "photographic" ? title : title || "Untitled record",
     title_zh: recordTitleZhEditor.value.trim() || null,
     city: recordCityEditor.value.trim() || null,
-    country: recordCountryEditor.value.trim() || null,
-    institution: recordInstitutionEditor.value.trim() || null,
+    institution: noteType === "photographic" ? null : recordInstitutionEditor.value.trim() || null,
     visit_date: recordVisitDateEditor.value || details.visit_date || record.visitDate,
-    exhibition_dates: recordExhibitionDatesEditor.value.trim() || null,
-    summary: recordSummaryEditor.value.trim() || null,
+    archive_order: Number.parseInt(recordArchiveOrderEditor.value, 10) || 0,
+    exhibition_dates: noteType === "exhibition" ? recordExhibitionDatesEditor.value.trim() || null : null,
+    summary: noteType === "photographic" ? null : recordSummaryEditor.value.trim() || null,
   });
   renderRecordDetails();
 });
 
 recordTypeEditor.addEventListener("change", () => {
   const isPhotographic = recordTypeEditor.value === "photographic";
-  recordRouteEditorRow.hidden = !isPhotographic;
+  const isField = recordTypeEditor.value === "field";
   recordInstitutionEditorRow.hidden = isPhotographic;
-  recordExhibitionDatesEditorRow.hidden = isPhotographic;
+  recordExhibitionDatesEditorRow.hidden = isPhotographic || isField;
+  recordSummaryEditorRow.hidden = isPhotographic;
+  recordImagesSection.hidden = isField;
 });
 
 imageFiles.addEventListener("change", async () => {
@@ -726,10 +763,10 @@ saveLinks.addEventListener("click", async () => {
 });
 
 imagesView.addEventListener("click", async (event) => {
-  const moveButton = event.target.closest("[data-move-image-index]");
-  if (moveButton) {
-    const image = getImages()[Number(moveButton.dataset.moveImageIndex)];
-    if (image) await moveImage(image, Number(moveButton.dataset.moveDirection));
+  const photographicCoverButton = event.target.closest("[data-photo-cover-index]");
+  if (photographicCoverButton && ownerActive) {
+    const image = getImages()[Number(photographicCoverButton.dataset.photoCoverIndex)];
+    if (image) await togglePhotographicCover(image);
     return;
   }
 

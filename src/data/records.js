@@ -5,7 +5,6 @@ export const records = [
     titleZh: "每个方向中的移动",
     institution: "Baltimore Museum of Art",
     city: "Shanghai",
-    country: "",
     visitDate: "2025-04-18",
     exhibitionDates: "2022-10-30 to 2023-01-29",
     summary:
@@ -27,7 +26,6 @@ export const records = [
     title: "Future Exhibition",
     institution: "To be added",
     city: "City",
-    country: "Country",
     visitDate: "2026-05-29",
     exhibitionDates: "",
     summary:
@@ -44,7 +42,6 @@ export const records = [
     title: "Wall Text and Weather",
     institution: "Museum to be added",
     city: "City",
-    country: "Country",
     visitDate: "2026-06-12",
     exhibitionDates: "",
     summary:
@@ -58,7 +55,6 @@ export const records = [
     title: "Small Room Study",
     institution: "Gallery to be added",
     city: "City",
-    country: "Country",
     visitDate: "2026-07-04",
     exhibitionDates: "",
     summary:
@@ -72,7 +68,6 @@ export const records = [
     title: "Research Return",
     institution: "Archive to be added",
     city: "City",
-    country: "Country",
     visitDate: "2026-08-21",
     exhibitionDates: "",
     summary:

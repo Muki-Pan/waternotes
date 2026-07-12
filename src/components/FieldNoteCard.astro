@@ -1,0 +1,13 @@
+---
+const { record } = Astro.props;
+---
+
+<article class="field-note-card archive-record" data-record-id={record.id}>
+  <a class="field-note-card__link" href={`/record/?id=${record.id}`}>
+    <span class="note-type-label">Field Note</span>
+    {record.title && <h4>{record.title}</h4>}
+    {record.institution && <p class="field-note-card__institution">{record.institution}</p>}
+    {record.summary && <p class="field-note-card__summary">{record.summary}</p>}
+    <span class="field-note-card__read">Read note <span aria-hidden="true">→</span></span>
+  </a>
+</article>

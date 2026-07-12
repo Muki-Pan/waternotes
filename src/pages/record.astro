@@ -7,12 +7,10 @@ const defaultRecord = {
   titleZh: "",
   institution: "",
   city: "",
-  country: "",
   visitDate: new Date().toISOString().slice(0, 10),
   exhibitionDates: "",
   summary: "",
   noteType: "exhibition",
-  route: "",
   notes: [],
   images: [],
   relatedLinks: [],
@@ -61,10 +59,6 @@ const supabaseConfig = JSON.stringify({
             <span>Exhibition dates</span>
             <strong id="record-exhibition-dates">Not recorded</strong>
           </div>
-          <div id="record-route-row" hidden>
-            <span>Route</span>
-            <strong id="record-route"></strong>
-          </div>
         </div>
         <p class="record-summary" id="record-summary" hidden></p>
       </header>
@@ -74,6 +68,7 @@ const supabaseConfig = JSON.stringify({
           <select id="record-type-editor">
             <option value="exhibition">Exhibition Note</option>
             <option value="photographic">Photographic Note</option>
+            <option value="field">Field Note</option>
           </select>
         </label>
         <label>
@@ -88,34 +83,30 @@ const supabaseConfig = JSON.stringify({
           <span>City</span>
           <input id="record-city-editor" type="text" />
         </label>
-        <label>
-          <span>Country</span>
-          <input id="record-country-editor" type="text" />
-        </label>
         <label id="record-institution-editor-row">
           <span>Institution</span>
           <input id="record-institution-editor" type="text" />
-        </label>
-        <label id="record-route-editor-row" hidden>
-          <span>Route</span>
-          <input id="record-route-editor" type="text" placeholder="代官山 → 涩谷" />
         </label>
         <label>
           <span>Visit date</span>
           <input id="record-visit-date-editor" type="date" />
         </label>
+        <label>
+          <span>Archive order (lower first)</span>
+          <input id="record-archive-order-editor" type="number" step="1" value="0" />
+        </label>
         <label id="record-exhibition-dates-editor-row">
           <span>Exhibition dates</span>
           <input id="record-exhibition-dates-editor" type="text" />
         </label>
-        <label class="record-details-tools__wide">
+        <label class="record-details-tools__wide" id="record-summary-editor-row">
           <span>Summary</span>
           <textarea id="record-summary-editor" class="notes-editor" aria-label="Edit summary"></textarea>
         </label>
         <button class="button" id="save-record-details" type="button">Save Details</button>
       </div>
 
-      <section class="section-block" aria-labelledby="images-title">
+      <section class="section-block" id="record-images-section" aria-labelledby="images-title">
         <div id="images-view" class="image-masonry"></div>
         <p id="images-empty" class="empty-state" hidden>No images yet.</p>
         <div id="image-tools" class="image-upload" hidden>
@@ -143,6 +134,10 @@ const supabaseConfig = JSON.stringify({
       </section>
 
       <p class="owner-copy owner-state" id="owner-state" hidden>Owner editing is active.</p>
+      <div class="record-danger-tools" id="record-danger-tools" hidden>
+        <button class="button button--danger" id="delete-record" type="button">Delete Note</button>
+      </div>
+      <a class="back-link record-bottom-back" href="/notes">返回 All Notes</a>
     </main>
     <footer class="site-credit">
       <a href="https://mukipan.com" target="_blank" rel="noreferrer">Muki Pan</a>

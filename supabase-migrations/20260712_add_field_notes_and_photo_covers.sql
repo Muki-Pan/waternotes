@@ -2,9 +2,6 @@ alter table public.exhibition_records
   add column if not exists note_type text not null default 'exhibition';
 
 alter table public.exhibition_records
-  add column if not exists route text;
-
-alter table public.exhibition_records
   add column if not exists photographic_cover_image_ids jsonb not null default '[]'::jsonb;
 
 alter table public.exhibition_records

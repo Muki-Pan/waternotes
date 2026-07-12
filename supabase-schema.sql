@@ -16,6 +16,8 @@ create table if not exists public.exhibition_records (
   related_links jsonb default '[]'::jsonb,
   note_type text not null default 'exhibition',
   route text,
+  photographic_cover_image_ids jsonb not null default '[]'::jsonb,
+  archive_order integer not null default 0,
   cover_src text,
   published boolean default true,
   created_at timestamptz default now(),
@@ -41,11 +43,17 @@ alter table public.exhibition_records
   add column if not exists route text;
 
 alter table public.exhibition_records
+  add column if not exists photographic_cover_image_ids jsonb not null default '[]'::jsonb;
+
+alter table public.exhibition_records
+  add column if not exists archive_order integer not null default 0;
+
+alter table public.exhibition_records
   drop constraint if exists exhibition_records_note_type_check;
 
 alter table public.exhibition_records
   add constraint exhibition_records_note_type_check
-  check (note_type in ('exhibition', 'photographic'));
+  check (note_type in ('exhibition', 'photographic', 'field'));
 
 alter table public.exhibition_images
   add column if not exists src text;

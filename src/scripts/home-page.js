@@ -153,7 +153,7 @@ async function loadHome() {
   if (!supabase) return [];
   const { data: records, error: recordError } = await supabase
     .from("exhibition_records")
-    .select("id, title, institution, city, country, visit_date, summary, cover_src, created_at")
+    .select("id, title, institution, city, visit_date, summary, cover_src, created_at")
     .eq("published", true)
     .order("visit_date", { ascending: false, nullsFirst: false });
   if (recordError || !records?.length) return [];
