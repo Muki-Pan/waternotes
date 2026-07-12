@@ -1,8 +1,8 @@
-import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
+import { getPublicSupabase, getSupabaseBucket } from "./supabase-client.js";
 
 const HOME_LIMIT = 13;
 const RECENT_RECORD_LIMIT = 5;
-const supabase = getSupabase();
+const supabase = getPublicSupabase();
 const bucketName = getSupabaseBucket();
 const slots = Array.from(document.querySelectorAll("[data-home-slot]"));
 const emptyState = document.querySelector("#home-empty");
@@ -155,14 +155,16 @@ async function loadHome() {
     .from("exhibition_records")
     .select("id, title, institution, city, visit_date, summary, cover_src, created_at")
     .eq("published", true)
-    .order("visit_date", { ascending: false, nullsFirst: false });
+    .order("visit_date", { ascending: false, nullsFirst: false })
+    .abortSignal(AbortSignal.timeout(12000));
   if (recordError || !records?.length) return [];
 
   const { data: images, error: imageError } = await supabase
     .from("exhibition_images")
     .select("id, record_id, storage_path, src, sort_order")
     .in("record_id", records.map((record) => record.id))
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .abortSignal(AbortSignal.timeout(12000));
   if (imageError || !images?.length) return [];
   return selectHomeImages(records, images);
 }

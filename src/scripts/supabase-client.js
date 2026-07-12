@@ -1,12 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
 let client;
+let publicClient;
+
+function readConfig() {
+  const configElement = document.querySelector("#supabase-config");
+  return configElement ? JSON.parse(configElement.textContent || "{}") : {};
+}
 
 export function getSupabase() {
   if (client) return client;
 
-  const configElement = document.querySelector("#supabase-config");
-  const config = configElement ? JSON.parse(configElement.textContent || "{}") : {};
+  const config = readConfig();
   const key = config.publishableKey || config.anonKey;
 
   if (!config.url || !key) {
@@ -18,9 +23,23 @@ export function getSupabase() {
   return client;
 }
 
+export function getPublicSupabase() {
+  if (publicClient) return publicClient;
+  const config = readConfig();
+  const key = config.publishableKey || config.anonKey;
+  if (!config.url || !key) return null;
+  publicClient = createClient(config.url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+  return publicClient;
+}
+
 export function getSupabaseBucket() {
-  const configElement = document.querySelector("#supabase-config");
-  const config = configElement ? JSON.parse(configElement.textContent || "{}") : {};
+  const config = readConfig();
   return config.bucket || "field-notes";
 }
 

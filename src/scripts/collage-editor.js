@@ -1,6 +1,7 @@
-import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
+import { getPublicSupabase, getSupabase, getSupabaseBucket } from "./supabase-client.js";
 
 const supabase = getSupabase();
+const publicSupabase = getPublicSupabase();
 const bucketName = getSupabaseBucket();
 const archiveShell = document.querySelector(".archive-shell");
 const layer = document.querySelector("#collage-layer");
@@ -172,8 +173,12 @@ function render() {
 }
 
 async function loadItems() {
-  if (!supabase || !layer) return;
-  const { data, error } = await supabase.from("collage_items").select("*").order("z_index", { ascending: true });
+  if (!publicSupabase || !layer) return;
+  const { data, error } = await publicSupabase
+    .from("collage_items")
+    .select("*")
+    .order("z_index", { ascending: true })
+    .abortSignal(AbortSignal.timeout(12000));
   if (error) {
     console.info("Collage layer is unavailable until its migration is applied.", error);
     return;
@@ -421,12 +426,21 @@ layer?.addEventListener("click", (event) => {
   sessionStorage.setItem("water-notes-archive-return", "true");
 });
 
+if (publicSupabase && isDesktop()) await loadItems();
+
 if (supabase) {
-  ownerSession = (await supabase.auth.getSession()).data.session;
+  try {
+    const response = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Owner session check timed out.")), 5000)),
+    ]);
+    ownerSession = response.data.session;
+  } catch (error) {
+    console.warn("Collage owner session check failed.", error);
+  }
   editButton.hidden = !ownerSession || !isDesktop();
   supabase.auth.onAuthStateChange((_event, session) => {
     ownerSession = session;
     editButton.hidden = !session || !isDesktop();
   });
-  if (isDesktop()) await loadItems();
 }

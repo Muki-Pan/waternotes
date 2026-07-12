@@ -1,9 +1,10 @@
-import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
+import { getPublicSupabase, getSupabase, getSupabaseBucket } from "./supabase-client.js";
 
 const OWNER_ACCESS_KEYS = ["field-notes-owner-access", "field-notes-owner-v2"];
 const LOCAL_RECORDS_KEY = "field-notes-local-records-v1";
 const LOCAL_IMAGES_KEY = "field-notes-images";
 const supabase = getSupabase();
+const publicSupabase = getPublicSupabase();
 const bucketName = getSupabaseBucket();
 const timeline = document.querySelector("#archive-timeline");
 const yearIndex = document.querySelector(".archive-year-index");
@@ -240,27 +241,30 @@ function prepareSmoothImages() {
 }
 
 const recordsById = new Map(fallbackRecords().map((record) => [record.id, record]));
-if (supabase) {
-  let { data, error } = await supabase
+if (publicSupabase) {
+  let { data, error } = await publicSupabase
     .from("exhibition_records")
     .select("id, title, institution, city, visit_date, summary, cover_src, note_type, photographic_cover_image_ids, archive_order, created_at")
     .eq("published", true)
-    .order("visit_date", { ascending: false, nullsFirst: false });
+    .order("visit_date", { ascending: false, nullsFirst: false })
+    .abortSignal(AbortSignal.timeout(12000));
   if (error) {
-    const typedFallback = await supabase
+    const typedFallback = await publicSupabase
       .from("exhibition_records")
       .select("id, title, institution, city, visit_date, summary, cover_src, note_type, created_at")
       .eq("published", true)
-      .order("visit_date", { ascending: false, nullsFirst: false });
+      .order("visit_date", { ascending: false, nullsFirst: false })
+      .abortSignal(AbortSignal.timeout(12000));
     if (!typedFallback.error) {
       data = typedFallback.data?.map((record) => ({ ...record, photographic_cover_image_ids: [] }));
       error = null;
     } else {
-      const fallbackResponse = await supabase
+      const fallbackResponse = await publicSupabase
       .from("exhibition_records")
       .select("id, title, institution, city, visit_date, summary, cover_src")
       .eq("published", true)
-      .order("visit_date", { ascending: false, nullsFirst: false });
+      .order("visit_date", { ascending: false, nullsFirst: false })
+      .abortSignal(AbortSignal.timeout(12000));
       data = fallbackResponse.data?.map((record) => ({ ...record, note_type: "exhibition", photographic_cover_image_ids: [] }));
       error = fallbackResponse.error;
     }
@@ -269,11 +273,12 @@ if (supabase) {
     recordsById.clear();
     data.forEach((record) => recordsById.set(record.id, record));
     if (data.length) {
-      const { data: imageData } = await supabase
+      const { data: imageData } = await publicSupabase
         .from("exhibition_images")
         .select("id, record_id, storage_path, src, sort_order")
         .in("record_id", data.map((record) => record.id))
-        .order("sort_order", { ascending: true });
+        .order("sort_order", { ascending: true })
+        .abortSignal(AbortSignal.timeout(12000));
       (imageData || []).forEach((image) => {
         const record = recordsById.get(image.record_id);
         if (!record) return;
@@ -293,7 +298,13 @@ Object.entries(loadLocalImages()).forEach(([id, images]) => {
 
 async function refreshOwnerAccess() {
   let session = null;
-  if (supabase) session = (await supabase.auth.getSession()).data.session;
+  if (supabase) {
+    const response = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Owner session check timed out.")), 5000)),
+    ]);
+    session = response.data.session;
+  }
   currentOwnerSession = session;
   if (createTools) createTools.hidden = !(session || hasLocalOwnerAccess());
   return Boolean(session);
@@ -332,7 +343,10 @@ createNoteButton?.addEventListener("click", async () => {
   };
   try {
     if (supabase && currentOwnerSession) {
-      const { error } = await supabase.from("exhibition_records").insert(record);
+      const { error } = await supabase
+        .from("exhibition_records")
+        .insert(record)
+        .abortSignal(AbortSignal.timeout(15000));
       if (error) throw error;
       window.location.href = recordHref(id);
       return;
@@ -356,7 +370,12 @@ createNoteButton?.addEventListener("click", async () => {
   }
 });
 
-if (supabase) supabase.auth.onAuthStateChange(() => refreshOwnerAccess());
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    currentOwnerSession = session;
+    if (createTools) createTools.hidden = !(session || hasLocalOwnerAccess());
+  });
+}
 
 yearIndex?.addEventListener("click", (event) => {
   const link = event.target.closest('a[href^="#archive-year-"]');
@@ -381,8 +400,8 @@ window.addEventListener("pageshow", (event) => {
 });
 
 renderArchive(Array.from(recordsById.values()));
-await refreshOwnerAccess();
 document.body.classList.remove("is-syncing-records");
+await refreshOwnerAccess().catch((error) => console.warn("Owner session check failed.", error));
 
 if (sessionStorage.getItem(ARCHIVE_RETURN_KEY) === "true") {
   const savedPosition = Number(sessionStorage.getItem(ARCHIVE_SCROLL_KEY) || 0);

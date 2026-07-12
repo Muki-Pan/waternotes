@@ -1,4 +1,4 @@
-import { getSupabase, getSupabaseBucket } from "./supabase-client.js";
+import { getPublicSupabase, getSupabase, getSupabaseBucket } from "./supabase-client.js";
 
 const OWNER_ACCESS_KEYS = ["field-notes-owner-access", "field-notes-owner-v2"];
 const LOCAL_RECORDS_KEY = "field-notes-local-records-v1";
@@ -12,21 +12,26 @@ document.body.dataset.recordId = recordId;
 if (recordIdLabel) recordIdLabel.textContent = recordId;
 const bucketName = getSupabaseBucket();
 const supabase = getSupabase();
+const publicSupabase = getPublicSupabase();
 
 const recordTitle = document.querySelector("#record-title");
 const recordTypeLabel = document.querySelector("#record-type-label");
 const recordTitleZh = document.querySelector("#record-title-zh");
 const recordLocation = document.querySelector("#record-location");
+const recordLocationRow = document.querySelector("#record-location-row");
 const recordInstitution = document.querySelector("#record-institution");
 const recordInstitutionRow = document.querySelector("#record-institution-row");
 const recordVisitDate = document.querySelector("#record-visit-date");
+const recordVisitDateRow = document.querySelector("#record-visit-date-row");
 const recordExhibitionDates = document.querySelector("#record-exhibition-dates");
 const recordExhibitionDatesRow = document.querySelector("#record-exhibition-dates-row");
 const recordSummary = document.querySelector("#record-summary");
+const recordMeta = document.querySelector(".record-meta");
 const recordDetailsTools = document.querySelector("#record-details-tools");
 const recordTitleEditor = document.querySelector("#record-title-editor");
 const recordTypeEditor = document.querySelector("#record-type-editor");
 const recordTitleZhEditor = document.querySelector("#record-title-zh-editor");
+const recordTitleZhEditorRow = document.querySelector("#record-title-zh-editor-row");
 const recordCityEditor = document.querySelector("#record-city-editor");
 const recordInstitutionEditor = document.querySelector("#record-institution-editor");
 const recordInstitutionEditorRow = document.querySelector("#record-institution-editor-row");
@@ -38,6 +43,9 @@ const recordSummaryEditor = document.querySelector("#record-summary-editor");
 const recordSummaryEditorRow = document.querySelector("#record-summary-editor-row");
 const saveRecordDetails = document.querySelector("#save-record-details");
 const notesView = document.querySelector("#notes-view");
+const notesSection = document.querySelector("#record-notes-section");
+const notesTitle = document.querySelector("#notes-title");
+const recordHeader = document.querySelector(".record-header");
 const notesTools = document.querySelector("#notes-tools");
 const notesEditor = document.querySelector("#notes-editor");
 const saveNotes = document.querySelector("#save-notes");
@@ -47,6 +55,7 @@ const imageTools = document.querySelector("#image-tools");
 const imageFiles = document.querySelector("#image-files");
 const recordImagesSection = document.querySelector("#record-images-section");
 const linksView = document.querySelector("#links-view");
+const linksSection = document.querySelector("#record-links-section");
 const linksEmpty = document.querySelector("#links-empty");
 const linkTools = document.querySelector("#link-tools");
 const linksEditor = document.querySelector("#links-editor");
@@ -264,7 +273,10 @@ function renderNotes() {
   const notes = getNotes();
   notesView.innerHTML = notes.length
     ? notes.map((note) => `<p>${escapeHtml(note)}</p>`).join("")
-    : '<p class="empty-state">No notes yet.</p>';
+    : ownerActive
+      ? '<p class="empty-state">No notes yet.</p>'
+      : "";
+  notesSection.hidden = !notes.length && !ownerActive;
   notesEditor.value = notes.join("\n\n");
 }
 
@@ -304,19 +316,30 @@ function renderRecordDetails() {
   recordTitle.textContent = details.title || "";
   recordTitle.hidden = isPhotographic && !details.title;
   recordTitleZh.textContent = details.title_zh || "";
-  recordTitleZh.hidden = !details.title_zh;
-  recordLocation.textContent = location || "Location unknown";
-  recordInstitution.textContent = details.institution || "To be added";
-  recordInstitutionRow.hidden = isPhotographic;
+  recordTitleZh.hidden = isField || !details.title_zh;
+  recordLocation.textContent = location || (isField ? "" : "Location unknown");
+  recordLocationRow.hidden = isField && !location;
+  recordInstitution.textContent = details.institution || (isField ? "" : "To be added");
+  recordInstitutionRow.hidden = isPhotographic || (isField && !details.institution);
   recordVisitDate.textContent = formatDate(details.visit_date);
-  recordExhibitionDates.textContent = details.exhibition_dates || "Not recorded";
+  recordVisitDateRow.hidden = isField && !details.visit_date;
+  recordExhibitionDates.textContent = details.exhibition_dates || "";
   recordExhibitionDatesRow.hidden = isPhotographic || isField;
   recordSummary.textContent = details.summary || "";
-  recordSummary.hidden = !isField || !details.summary;
+  recordSummary.hidden = true;
+  recordTitleZhEditorRow.hidden = isField;
   recordInstitutionEditorRow.hidden = isPhotographic;
   recordExhibitionDatesEditorRow.hidden = isPhotographic || isField;
-  recordSummaryEditorRow.hidden = isPhotographic;
+  recordSummaryEditorRow.hidden = isPhotographic || isField;
   recordImagesSection.hidden = isField;
+  recordMeta.hidden = isField && !location && !details.institution && !details.visit_date;
+
+  notesTitle.hidden = isField;
+  if (isField) {
+    recordMeta.before(notesSection);
+  } else {
+    recordImagesSection.after(notesSection);
+  }
 
   document.title = `${details.title || (isPhotographic ? "Photographic Note" : "Untitled record")} | Water Notes`;
 
@@ -380,6 +403,7 @@ function renderImages() {
 
 function renderLinks() {
   const links = getLinks();
+  const isField = getRecordDetails().note_type === "field";
   linksView.innerHTML = links
     .map(
       (link) => `
@@ -389,7 +413,8 @@ function renderLinks() {
       `
     )
     .join("");
-  linksEmpty.hidden = links.length > 0;
+  linksEmpty.hidden = links.length > 0 || (isField && !ownerActive);
+  linksSection.hidden = isField && !links.length && !ownerActive;
   linksEditor.value = links.map((link) => `${link.label || link.url} | ${link.url}`).join("\n");
 }
 
@@ -408,42 +433,48 @@ function updateOwnerUi() {
   ownerState.hidden = !ownerActive;
   recordDangerTools.hidden = !ownerActive;
   ownerState.textContent = ownerSessionActive ? "Owner editing is active." : "Local owner editing is active.";
+  renderNotes();
+  renderLinks();
   renderImages();
 }
 
 async function loadRemoteData() {
-  if (!supabase) {
+  if (!publicSupabase) {
     renderAll();
     return;
   }
 
   let [{ data: recordData, error: recordError }, { data: imageData }] = await Promise.all([
-    supabase
+    publicSupabase
       .from("exhibition_records")
       .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type, photographic_cover_image_ids, archive_order")
       .eq("id", recordId)
-      .maybeSingle(),
-    supabase
+      .maybeSingle()
+      .abortSignal(AbortSignal.timeout(12000)),
+    publicSupabase
       .from("exhibition_images")
       .select("id, storage_path, src, sort_order")
       .eq("record_id", recordId)
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true })
+      .abortSignal(AbortSignal.timeout(12000)),
   ]);
 
   if (recordError) {
-    const typedFallback = await supabase
+    const typedFallback = await publicSupabase
       .from("exhibition_records")
       .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src, note_type")
       .eq("id", recordId)
-      .maybeSingle();
+      .maybeSingle()
+      .abortSignal(AbortSignal.timeout(12000));
     if (!typedFallback.error) {
       recordData = typedFallback.data ? { ...typedFallback.data, photographic_cover_image_ids: [] } : null;
     } else {
-      const fallbackResponse = await supabase
+      const fallbackResponse = await publicSupabase
         .from("exhibition_records")
         .select("title, title_zh, institution, city, visit_date, exhibition_dates, summary, notes, related_links, cover_src")
         .eq("id", recordId)
-        .maybeSingle();
+        .maybeSingle()
+        .abortSignal(AbortSignal.timeout(12000));
       recordData = fallbackResponse.data ? { ...fallbackResponse.data, note_type: "exhibition", photographic_cover_image_ids: [] } : null;
     }
   }
@@ -464,7 +495,10 @@ async function refreshOwnerAccess() {
   let session = null;
 
   if (supabase) {
-    const response = await supabase.auth.getSession();
+    const response = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Owner session check timed out.")), 5000)),
+    ]);
     session = response.data.session;
   }
 
@@ -811,14 +845,17 @@ window.addEventListener("resize", () => {
 });
 
 if (supabase) {
-  supabase.auth.onAuthStateChange(() => {
-    refreshOwnerAccess();
+  supabase.auth.onAuthStateChange((_event, session) => {
+    ownerSessionActive = Boolean(session);
+    localOwnerActive = !ownerSessionActive && hasLocalOwnerAccess();
+    ownerActive = ownerSessionActive || localOwnerActive;
+    updateOwnerUi();
   });
 }
 
 try {
   await loadRemoteData();
-  await refreshOwnerAccess();
 } finally {
   document.body.classList.remove("is-loading-record");
 }
+await refreshOwnerAccess().catch((error) => console.warn("Owner session check failed.", error));

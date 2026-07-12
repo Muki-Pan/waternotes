@@ -43,7 +43,7 @@ const supabaseConfig = JSON.stringify({
         <h1 id="record-title">Untitled record</h1>
         <p id="record-title-zh" hidden></p>
         <div class="record-meta">
-          <div>
+          <div id="record-location-row">
             <span>City</span>
             <strong id="record-location">Location unknown</strong>
           </div>
@@ -51,8 +51,8 @@ const supabaseConfig = JSON.stringify({
             <span>Institution</span>
             <strong id="record-institution">To be added</strong>
           </div>
-          <div>
-            <span>Visit date</span>
+          <div id="record-visit-date-row">
+            <span>Date</span>
             <strong id="record-visit-date">Date unknown</strong>
           </div>
           <div id="record-exhibition-dates-row">
@@ -75,7 +75,7 @@ const supabaseConfig = JSON.stringify({
           <span>Title</span>
           <input id="record-title-editor" type="text" />
         </label>
-        <label>
+        <label id="record-title-zh-editor-row">
           <span>Chinese title</span>
           <input id="record-title-zh-editor" type="text" />
         </label>
@@ -114,7 +114,7 @@ const supabaseConfig = JSON.stringify({
         </div>
       </section>
 
-      <section class="section-block" aria-labelledby="notes-title">
+      <section class="section-block" id="record-notes-section" aria-labelledby="notes-title">
         <h2 id="notes-title">Notes</h2>
         <div id="notes-view" class="notes-view"></div>
         <div id="notes-tools" class="edit-tools" hidden>
@@ -123,7 +123,7 @@ const supabaseConfig = JSON.stringify({
         </div>
       </section>
 
-      <section class="section-block" aria-labelledby="links-title">
+      <section class="section-block" id="record-links-section" aria-labelledby="links-title">
         <h2 id="links-title">Related Links</h2>
         <ul id="links-view" class="related-list"></ul>
         <p id="links-empty" class="empty-state" hidden>No related links yet.</p>
