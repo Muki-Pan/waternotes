@@ -93,6 +93,19 @@ function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
 }
 
+function preventCjkTitleOrphan(value) {
+  const characters = Array.from(String(value || ""));
+  if (characters.length < 2) return characters.join("");
+
+  const cjkCharacter = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+  const last = characters.at(-1);
+  const previous = characters.at(-2);
+  if (cjkCharacter.test(last) && cjkCharacter.test(previous)) {
+    characters.splice(-1, 0, "\u2060");
+  }
+  return characters.join("");
+}
+
 function localStorageAvailable() {
   try {
     return typeof window.localStorage !== "undefined";
@@ -329,7 +342,7 @@ function renderRecordDetails() {
   document.body.classList.toggle("is-field-note", isField);
   recordTypeLabel.hidden = !isPhotographic && !isField;
   recordTypeLabel.textContent = isField ? "Field Note" : "Photographic Note";
-  recordTitle.textContent = details.title || "";
+  recordTitle.textContent = preventCjkTitleOrphan(details.title);
   recordTitle.hidden = isPhotographic && !details.title;
   recordTitleZh.textContent = details.title_zh || "";
   recordTitleZh.hidden = isField || !details.title_zh;
@@ -346,7 +359,7 @@ function renderRecordDetails() {
   recordTitleZhEditorRow.hidden = isField;
   recordInstitutionEditorRow.hidden = isPhotographic;
   recordExhibitionDatesEditorRow.hidden = isPhotographic || isField;
-  recordSummaryEditorRow.hidden = isPhotographic || isField;
+  recordSummaryEditorRow.hidden = isPhotographic;
   recordImagesSection.hidden = isField;
   recordMeta.hidden = isField && !location && !details.institution && !details.visit_date;
 

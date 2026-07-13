@@ -110,6 +110,17 @@ function element(tag, className, text) {
   return node;
 }
 
+function preventCjkTitleOrphan(value) {
+  const characters = Array.from(String(value || ""));
+  if (characters.length < 2) return characters.join("");
+
+  const cjkCharacter = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+  if (cjkCharacter.test(characters.at(-1)) && cjkCharacter.test(characters.at(-2))) {
+    characters.splice(-1, 0, "\u2060");
+  }
+  return characters.join("");
+}
+
 function createRecord(record) {
   if (record.note_type === "photographic") return createPhotographicRecord(record);
   if (record.note_type === "field") return createFieldRecord(record);
@@ -128,7 +139,7 @@ function createRecord(record) {
   coverLink.append(cover);
 
   const copy = element("div", "archive-record__copy");
-  const title = element("a", "record-row__title", record.title || "Untitled record");
+  const title = element("a", "record-row__title", preventCjkTitleOrphan(record.title || "Untitled record"));
   title.href = recordHref(record.id);
   copy.append(title);
   if (record.institution) copy.append(element("p", "archive-record__institution", record.institution));
@@ -145,7 +156,7 @@ function createPhotographicRecord(record) {
 
   const copy = element("div", "photographic-card__copy");
   copy.append(element("span", "note-type-label", "Photographic Note"));
-  if (record.title) copy.append(element("h4", "", record.title));
+  if (record.title) copy.append(element("h4", "", preventCjkTitleOrphan(record.title)));
   if (record.city) copy.append(element("p", "photographic-card__route", record.city));
 
   const orderedImages = [...(record.images || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -182,7 +193,7 @@ function createFieldRecord(record) {
   const link = element("a", "field-note-card__link");
   link.href = recordHref(record.id);
   link.append(element("span", "note-type-label", "Field Note"));
-  if (record.title) link.append(element("h4", "", record.title));
+  if (record.title) link.append(element("h4", "", preventCjkTitleOrphan(record.title)));
   if (record.institution) link.append(element("p", "field-note-card__institution", record.institution));
   if (record.summary) link.append(element("p", "field-note-card__summary", record.summary));
   const read = element("span", "field-note-card__read", "Read note →");
