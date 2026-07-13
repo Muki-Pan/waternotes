@@ -7,6 +7,7 @@ const MAX_IMAGE_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 const record = JSON.parse(document.querySelector("#record-data").textContent);
 const recordId = document.body.dataset.recordId || new URLSearchParams(window.location.search).get("id") || record.id;
+const NOTES_DRAFT_KEY = `water-notes-draft:${recordId}:notes`;
 const recordIdLabel = document.querySelector("#record-id-label");
 document.body.dataset.recordId = recordId;
 if (recordIdLabel) recordIdLabel.textContent = recordId;
@@ -98,6 +99,21 @@ function localStorageAvailable() {
   } catch {
     return false;
   }
+}
+
+function getNotesDraft() {
+  if (!localStorageAvailable()) return null;
+  return window.localStorage.getItem(NOTES_DRAFT_KEY);
+}
+
+function saveNotesDraft(value) {
+  if (!localStorageAvailable()) return;
+  window.localStorage.setItem(NOTES_DRAFT_KEY, value);
+}
+
+function clearNotesDraft() {
+  if (!localStorageAvailable()) return;
+  window.localStorage.removeItem(NOTES_DRAFT_KEY);
 }
 
 function ownerAccessValueIsActive(value) {
@@ -277,7 +293,7 @@ function renderNotes() {
       ? '<p class="empty-state">No notes yet.</p>'
       : "";
   notesSection.hidden = !notes.length && !ownerActive;
-  notesEditor.value = notes.join("\n\n");
+  notesEditor.value = getNotesDraft() ?? notes.join("\n\n");
 }
 
 function prepareSmoothImage(image) {
@@ -426,6 +442,9 @@ function renderAll() {
 }
 
 function updateOwnerUi() {
+  const notes = getNotes();
+  const links = getLinks();
+  const isField = getRecordDetails().note_type === "field";
   recordDetailsTools.hidden = !ownerActive;
   notesTools.hidden = !ownerActive;
   imageTools.hidden = !ownerActive;
@@ -433,8 +452,9 @@ function updateOwnerUi() {
   ownerState.hidden = !ownerActive;
   recordDangerTools.hidden = !ownerActive;
   ownerState.textContent = ownerSessionActive ? "Owner editing is active." : "Local owner editing is active.";
-  renderNotes();
-  renderLinks();
+  notesSection.hidden = !notes.length && !ownerActive;
+  linksSection.hidden = isField && !links.length && !ownerActive;
+  linksEmpty.hidden = links.length > 0 || (isField && !ownerActive);
   renderImages();
 }
 
@@ -650,6 +670,10 @@ deleteRecordButton.addEventListener("click", async () => {
   }
 });
 
+notesEditor.addEventListener("input", () => {
+  saveNotesDraft(notesEditor.value);
+});
+
 saveNotes.addEventListener("click", async () => {
   const notes = notesEditor.value
     .split(/\n{2,}/)
@@ -657,6 +681,7 @@ saveNotes.addEventListener("click", async () => {
     .filter(Boolean);
 
   await upsertRecord({ notes });
+  clearNotesDraft();
   renderNotes();
 });
 
